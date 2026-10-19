@@ -84,6 +84,7 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .mrow .tx{display:grid;gap:2px}
 .mrow .t{font-size:17px;font-weight:500;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .mrow .y{font-size:15px;color:var(--ink-2);font-variant-numeric:lining-nums}
+.mrow .g{font-size:13px;line-height:1.3;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mrow .rt{display:grid;justify-items:center;gap:3px}
 .mrow .w{font-size:12px;color:var(--ink-2)}
 
@@ -147,13 +148,17 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .mrow .ck svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 
 /* ---------- rating screen */
-.rate{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto}
+.rate{height:100%;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto}
 .film{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px;padding:2px 20px 16px}
 .film h1{font-size:24px;line-height:1.15;font-weight:500;letter-spacing:-.005em;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .film .y{margin-top:4px;font-size:17px;color:var(--ink-2);font-variant-numeric:lining-nums}
+.film .g{margin-top:3px;font-size:15px;line-height:1.3;color:var(--ink-2)}
 .film .was{margin-top:6px;font-size:13px;color:var(--ink-2)}
+.gist{padding:0 20px 10px}
+.syn{font-size:15px;line-height:1.4;color:var(--ink-2);text-wrap:pretty;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;cursor:pointer}
+.syn.open{display:block}
 
-.scale{list-style:none;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:6px 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.scale{list-style:none;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .scale li{flex:1 0 46px;max-height:70px;display:grid}
 .scale button{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;column-gap:12px;width:100%;padding:0 8px;border-radius:14px}
 .scale .n{display:grid;place-items:center;width:28px;height:28px;border-radius:14px;font-size:16px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums;transition:background .12s,color .12s}
@@ -180,13 +185,15 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .slider input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
 .slider:focus-within .thumb{outline:2px solid var(--ink);outline-offset:3px}
 
-@media (max-height:700px){
-  .film{padding-bottom:10px}
+@media (max-height:780px){
+  .film{padding-bottom:6px}
+  .gist{padding-bottom:6px}
+  .syn{font-size:14px;line-height:1.35;-webkit-line-clamp:3}
   .film .p-l{width:56px;height:84px}
-  .film h1{font-size:21px}
+  .film h1{font-size:21px;-webkit-line-clamp:2}
   .scale{padding-top:2px;padding-bottom:2px}
   .scale li{flex-basis:42px}
-  .readout{min-height:66px}
+  .readout{min-height:62px}
   .readout .word{font-size:24px}
   .slider{height:46px;margin-bottom:8px}
 }
@@ -339,6 +346,7 @@ function persistWatch(changes = 0) {
 }
 const byId = id => ratings.find(r => r.id === id);
 const onWatch = id => watch.some(w => w.id === id);
+const watchSorted = () => [...watch].sort((a, b) => (b.year || 0) - (a.year || 0) || collator.compare(sortKey(a.title), sortKey(b.title)));
 const latest = () => ratings.reduce((a, r) => (!a || (r.at || '') > (a.at || '') ? r : a), null);
 const sorted = list => [...list].sort((a, b) => b.rating - a.rating || collator.compare(sortKey(a.title), sortKey(b.title)) || (a.year || 0) - (b.year || 0));
 
@@ -360,7 +368,10 @@ async function tmdb(path, params = {}, key = getKey()) {
 }
 
 const yearOf = d => { const y = String(d || '').slice(0, 4); return /^\d{4}$/.test(y) ? +y : null; };
-const slim = m => ({ id: m.id, title: m.title || m.original_title || 'Untitled', year: yearOf(m.release_date), poster: m.poster_path || null });
+// The movie database's genre numbers, so search results can show genres without another request.
+const GENRES = { 28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Science Fiction', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western' };
+const slim = m => ({ id: m.id, title: m.title || m.original_title || 'Untitled', year: yearOf(m.release_date), poster: m.poster_path || null,
+  genres: (m.genre_ids || []).map(g => GENRES[g]).filter(Boolean), overview: String(m.overview || '').trim() });
 
 // Closest title match first; the database's own order breaks ties.
 function rank(results, q) {
@@ -390,7 +401,7 @@ async function fetchDetails(id) {
 function applyDetails(id, d) {
   const r = byId(id);
   if (!r || !d) return;
-  Object.assign(r, { title: d.title, year: d.year ?? r.year, poster: d.poster ?? r.poster, genres: d.genres, directors: d.directors, cast: d.cast, full: true });
+  Object.assign(r, { title: d.title, year: d.year ?? r.year, poster: d.poster ?? r.poster, genres: d.genres, directors: d.directors, cast: d.cast, overview: d.overview || r.overview || '', full: true });
   persist();
 }
 
@@ -406,7 +417,7 @@ async function backfill() {
       catch (e) { if (e.kind === 'missing') { r.full = true; persist(); } else break; }
     }
     for (const w of watch.filter(x => !x.full)) {
-      try { const d = await fetchDetails(w.id); Object.assign(w, { title: d.title, year: d.year ?? w.year, poster: d.poster ?? w.poster, full: true }); persistWatch(); filled++; }
+      try { const d = await fetchDetails(w.id); Object.assign(w, { title: d.title, year: d.year ?? w.year, poster: d.poster ?? w.poster, genres: d.genres, overview: d.overview || w.overview || '', full: true }); persistWatch(); filled++; }
       catch (e) { if (e.kind === 'missing') { w.full = true; persistWatch(); } else break; }
     }
   } finally { backfilling = false; }
@@ -431,11 +442,12 @@ document.addEventListener('error', e => {
   el.replaceWith(s);
 }, true);
 
-function rowHTML(m, { size = 'm', word = false } = {}) {
+function rowHTML(m, { size = 'm', word = false, genre = false } = {}) {
   const r = m.rating;
+  const g = genre && m.genres && m.genres.length ? `<span class="g">${esc(m.genres.slice(0, 3).join(', '))}</span>` : '';
   return `<button type="button" class="mrow" data-id="${esc(m.id)}">
     ${poster(m.poster, m.title, size)}
-    <span class="tx"><span class="t">${esc(m.title)}</span>${m.year ? `<span class="y">${esc(m.year)}</span>` : ''}</span>
+    <span class="tx"><span class="t">${esc(m.title)}</span>${m.year ? `<span class="y">${esc(m.year)}</span>` : ''}${g}</span>
     ${r ? `<span class="rt r${r}"><span class="chip">${r}</span>${word ? `<span class="w">${esc(SCALE[r][0])}</span>` : ''}</span>` : m.onList ? `<span class="ck" title="On your watchlist">${ICON.check}</span>` : ''}
   </button>`;
 }
@@ -642,6 +654,7 @@ async function restore(fileList) {
     else if (job.kind === 'watch') {
       const old = watch.find(w => w.id === id);
       const rec = { id, title: (d && d.title) || row.title, year: (d && d.year) ?? row.year ?? null, poster: (d && d.poster) ?? (old && old.poster) ?? null,
+        genres: d ? d.genres : (old && old.genres) || [], overview: (d && d.overview) || (old && old.overview) || '',
         added: row.at || (old && old.added) || new Date(stamp - done * 1000).toISOString(), full: !!d || !!(old && old.full) };
       if (old) Object.assign(old, rec); else watch.push(rec);
       addedW++;
@@ -854,9 +867,11 @@ const VIEWS = {
         <div>
           <h1>${esc(m.title)}</h1>
           ${m.year ? `<p class="y">${esc(m.year)}</p>` : ''}
+          <p class="g" id="gline" hidden></p>
           ${saved ? `<p class="was">You rated it ${saved.rating}${saved.at ? ' on ' + esc(niceDay(saved.at)) : ''}</p>` : listed ? `<p class="was">On your watchlist${listed.added ? ' since ' + esc(niceDay(listed.added)) : ''}</p>` : ''}
         </div>
       </div>
+      <div class="gist"><p class="syn" id="syn" hidden></p></div>
       <ol class="scale" id="scale">
         ${SCALE.slice(1).map((s, i) => `<li><button type="button" data-v="${i + 1}"><span class="n">${i + 1}</span><span class="tx"><span class="nm">${esc(s[0])}</span><span class="d">${esc(s[1])}</span></span></button></li>`).join('')}
       </ol>
@@ -873,6 +888,19 @@ const VIEWS = {
     </section>`;
 
     const root = $('#rate'), slider = $('#slider'), input = $('input', slider), finish = $('#finish');
+
+    // Genre and synopsis: whatever is already known shows at once; the database's answer replaces it.
+    const paintAbout = () => {
+      const pick = k => [page.got, saved, listed, m].map(x => x && x[k]).find(v => Array.isArray(v) ? v.length : v) || (k === 'genres' ? [] : '');
+      const genres = pick('genres'), over = pick('overview');
+      const gl = $('#gline'), syn = $('#syn');
+      if (!gl || !syn) return;
+      gl.textContent = genres.join(', '); gl.hidden = !genres.length;
+      syn.textContent = over; syn.hidden = !over;
+    };
+    paintAbout();
+    page.details.then(() => { if (top() === page) paintAbout(); });
+    $('#syn').addEventListener('click', () => $('#syn').classList.toggle('open'));
     const set = v => {
       v = Math.min(MAX, Math.max(1, Math.round(v)));
       const changed = v !== value || !slider.classList.contains('set');
@@ -935,7 +963,8 @@ const VIEWS = {
       const rec = {
         id: m.id, title: (d && d.title) || m.title, year: (d && d.year) ?? m.year ?? null, poster: (d && d.poster) ?? m.poster ?? null,
         rating: value, at: old && page.from === 'log' ? (old.at || now) : now,
-        genres: d ? d.genres : (old && old.genres) || [], directors: d ? d.directors : (old && old.directors) || [], cast: d ? d.cast : (old && old.cast) || [],
+        genres: d ? d.genres : (old && old.genres && old.genres.length ? old.genres : m.genres || []), directors: d ? d.directors : (old && old.directors) || [], cast: d ? d.cast : (old && old.cast) || [],
+        overview: (d && d.overview) || (old && old.overview) || m.overview || '',
         full: !!d || !!(old && old.full),
       };
       if (old) Object.assign(old, rec); else ratings.push(rec);
@@ -997,9 +1026,7 @@ const VIEWS = {
         <label for="q">Enter Title</label>
         <div class="field">${ICON.search}<input id="q" type="text" inputmode="search" enterkeyhint="search" autocapitalize="words" autocorrect="off" spellcheck="false"></div>
       </form>
-      ${watch.length
-        ? `<p class="cap">${plural(watch.length, 'movie', 'movies')} to watch</p><ul class="list" id="wl">${watch.map(w => `<li>${rowHTML({ ...w, rating: (byId(w.id) || {}).rating })}</li>`).join('')}</ul>`
-        : '<p class="note">Nothing to watch yet. Search for a movie and tap it to add it here.</p>'}
+      ${watch.length ? `<p class="cap">${plural(watch.length, 'movie', 'movies')} to watch</p><div id="wl">${watchGroups()}</div>` : '<p class="note">Nothing to watch yet. Search for a movie and tap it to add it here.</p>'}
     </section>`;
     $('#ask').addEventListener('submit', e => {
       e.preventDefault();
@@ -1064,13 +1091,24 @@ const VIEWS = {
 };
 
 /* ---------------- watchlist */
+function watchGroups() {
+  const groups = [];
+  for (const w of watchSorted()) {
+    const year = w.year ?? null;
+    const g = groups[groups.length - 1];
+    if (g && g.year === year) g.items.push(w); else groups.push({ year, items: [w] });
+  }
+  return groups.map(g => `<div class="sec"><span class="nm">${g.year ?? 'Year unknown'}</span><span class="ct">${g.items.length}</span></div>
+    <ul class="list">${g.items.map(w => `<li>${rowHTML({ ...w, rating: (byId(w.id) || {}).rating }, { genre: true })}</li>`).join('')}</ul>`).join('');
+}
 function addToWatch(m) {
   if (onWatch(m.id)) { toast(`${m.title} is already on your watchlist.`); return; }
-  watch.unshift({ id: m.id, title: m.title, year: m.year ?? null, poster: m.poster ?? null, added: new Date().toISOString(), full: true });
+  watch.unshift({ id: m.id, title: m.title, year: m.year ?? null, poster: m.poster ?? null, genres: m.genres || [], overview: m.overview || '', added: new Date().toISOString(), full: false });
   persistWatch(1);
   homes.watch.scroll = 0;
   goHome('watch');
   toast(`Added ${m.title} to your watchlist.`);
+  backfill();   // fills in the synopsis and exact genres behind the scenes
 }
 
 /* ---------------- log search: title, genre, year, director, actor or rating */
