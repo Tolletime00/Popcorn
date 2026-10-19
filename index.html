@@ -135,9 +135,15 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .logbar{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px;padding:10px 6px 8px 20px;background:var(--bg)}
 .logbar .field input{height:44px;border-radius:22px;font-size:17px;padding-left:46px;padding-right:44px}
 .logbar .field>svg{left:16px}
-.sec{display:flex;align-items:center;gap:10px;padding:18px 20px 6px}
+.sec{display:flex;align-items:center;gap:10px;width:100%;padding:18px 20px 6px}
 .sec .nm{font-size:17px}
 .sec .ct{margin-left:auto;font-size:13px;color:var(--ink-3);font-variant-numeric:lining-nums}
+.sec .chev{display:grid;place-items:center;width:22px;height:22px;margin-right:-4px;color:var(--ink-3);transition:transform .15s}
+.sec .chev svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sec[aria-expanded=false] .chev{transform:rotate(-90deg)}
+button.sec{padding-bottom:10px}
+button.sec:active{opacity:.6}
+button.sec[aria-expanded=false]{padding-bottom:14px}
 .found{padding:6px 20px 0;font-size:13px;color:var(--ink-2)}
 
 /* ---------- Watchlist */
@@ -316,11 +322,12 @@ const ICON = {
   more: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.4l2.8 2.8 5.4-6"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
 };
 
 /* ================================================================== storage
    Everything personal stays in this browser's storage on the phone. */
-const K = { ratings: 'popcorn.ratings', watch: 'popcorn.watchlist', key: 'popcorn.tmdbKey', meta: 'popcorn.meta', skip: 'popcorn.skipInstall' };
+const K = { ratings: 'popcorn.ratings', watch: 'popcorn.watchlist', key: 'popcorn.tmdbKey', meta: 'popcorn.meta', skip: 'popcorn.skipInstall', fold: 'popcorn.logHidden' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
@@ -330,6 +337,7 @@ if (!Array.isArray(ratings)) ratings = [];
 let meta = Object.assign({ unsaved: 0, lastBackup: null }, LS.get(K.meta, {}));
 let watch = LS.get(K.watch, []);   // movies to watch, newest first
 if (!Array.isArray(watch)) watch = [];
+const hiddenLevels = new Set((LS.get(K.fold, []) || []).map(Number));   // rating levels folded away on the Log tab
 const getKey = () => LS.get(K.key, '') || '';
 if (ratings.some(r => r.rating > MAX)) {   // rated with the old 1-to-10 version of the app
   for (const r of ratings) r.rating = Math.min(MAX, Math.max(1, Math.ceil(r.rating / 2)));
@@ -347,6 +355,7 @@ function persistWatch(changes = 0) {
 const byId = id => ratings.find(r => r.id === id);
 const onWatch = id => watch.some(w => w.id === id);
 const watchSorted = () => [...watch].sort((a, b) => (b.year || 0) - (a.year || 0) || collator.compare(sortKey(a.title), sortKey(b.title)));
+const logSorted = list => [...list].sort((a, b) => b.rating - a.rating || (b.year || 0) - (a.year || 0) || collator.compare(sortKey(a.title), sortKey(b.title)));
 const latest = () => ratings.reduce((a, r) => (!a || (r.at || '') > (a.at || '') ? r : a), null);
 const sorted = list => [...list].sort((a, b) => b.rating - a.rating || collator.compare(sortKey(a.title), sortKey(b.title)) || (a.year || 0) - (b.year || 0));
 
@@ -984,7 +993,8 @@ const VIEWS = {
   /* ---------------- Log */
   log(page) {
     const q = page.q || '';
-    const list = sorted(q ? ratings.filter(r => matches(r, q)) : ratings);
+    const list = logSorted(q ? ratings.filter(r => matches(r, q)) : ratings);
+    const folded = q ? new Set() : hiddenLevels;   // a search always shows everything it finds
     let body;
     if (!ratings.length) body = '<p class="note">No ratings yet. Rate a movie and it lands here.</p>';
     else if (!list.length) body = `<p class="note">Nothing in your log matches “${esc(q)}”. Try a title, genre, year, director, actor or a rating from 1 to ${MAX}.</p>`;
@@ -993,8 +1003,11 @@ const VIEWS = {
       for (let r = MAX; r >= 1; r--) {
         const g = list.filter(x => x.rating === r);
         if (!g.length) continue;
-        body += `<div class="sec r${r}"><span class="chip">${r}</span><span class="nm">${esc(SCALE[r][0])}</span><span class="ct">${g.length}</span></div>
-          <ul class="list tight">${g.map(m => `<li>${rowHTML({ ...m, rating: 0 }, { size: 's' })}</li>`).join('')}</ul>`;
+        const off = folded.has(r);
+        body += q
+          ? `<div class="sec r${r}"><span class="chip">${r}</span><span class="nm">${esc(SCALE[r][0])}</span><span class="ct">${g.length}</span></div>`
+          : `<button type="button" class="sec r${r}" data-r="${r}" aria-expanded="${!off}" aria-label="${esc(SCALE[r][0])}, ${plural(g.length, 'movie', 'movies')}, ${off ? 'hidden' : 'shown'}"><span class="chip">${r}</span><span class="nm">${esc(SCALE[r][0])}</span><span class="ct">${g.length}</span><span class="chev">${ICON.chev}</span></button>`;
+        body += `<ul class="list tight"${off ? ' hidden' : ''}>${g.map(m => `<li>${rowHTML({ ...m, rating: 0 }, { size: 's' })}</li>`).join('')}</ul>`;
       }
     }
     viewEl.innerHTML = `<section>
@@ -1012,6 +1025,14 @@ const VIEWS = {
     if (clear) clear.addEventListener('click', () => { page.q = ''; page.scroll = 0; render(); });
     $('#more').addEventListener('click', moreSheet);
     $('#loglist').addEventListener('click', e => {
+      const h = e.target.closest('button.sec[data-r]');
+      if (h) {   // hide or show one rating level, and remember it
+        const r = +h.dataset.r;
+        if (hiddenLevels.has(r)) hiddenLevels.delete(r); else hiddenLevels.add(r);
+        LS.set(K.fold, [...hiddenLevels]);
+        page.scroll = viewEl.scrollTop; render();
+        return;
+      }
       const b = e.target.closest('.mrow');
       if (!b) return;
       const m = ratings.find(x => String(x.id) === b.dataset.id);
