@@ -1,6 +1,6 @@
 {
-  "name": "Popcorn",
-  "short_name": "Popcorn",
+  "name": "Movies",
+  "short_name": "Movies",
   "description": "Rate the movie you just watched, keep a log, and get recommendations.",
   "start_url": "./",
   "scope": "./",

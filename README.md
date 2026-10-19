@@ -1,4 +1,4 @@
-# Popcorn
+# Movies
 
 A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log, keep a watchlist of movies to see, and ask Claude for recommendations based on what you have and haven't seen.
 
@@ -25,13 +25,13 @@ Nothing has to be rebuilt. The app is this repository's GitHub Pages address.
 
 1. Open the address in Safari on the new iPhone. It looks like `https://YOUR-USERNAME.github.io/popcorn/`.
 2. Tap Share, then Add to Home Screen. Keep "Open as Web App" on and tap Add.
-3. Open Popcorn from the Home Screen.
+3. Open Movies from the Home Screen.
 4. Paste your TMDB key. It is on themoviedb.org under Settings, then API (the one called API Key).
 5. Go to Log, tap the three dots, choose "Restore from a backup" and pick `Movie Ratings.csv` and `Watchlist.csv` from OneDrive.
 
 Two things to know:
 
-- Deleting the Popcorn icon from the Home Screen deletes the ratings stored in it. Back up first.
+- Deleting the Movies icon from the Home Screen deletes the ratings stored in it. Back up first.
 - Ratings added in Safari and ratings added in the Home Screen app are kept separately. Always use the Home Screen app.
 
 ## Changing the app

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Popcorn</title>
+<title>Movies</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Popcorn">
+<meta name="apple-mobile-web-app-title" content="Movies">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-512.png">
 <!--
-  Popcorn: a personal movie-rating app.
+  Movies: a personal movie-rating app.
   One file on purpose: the styles and the script are below, and the typeface is embedded at the very end.
   Nothing secret lives in this file. The movie database key and the ratings are stored on the phone.
 -->
@@ -282,12 +282,12 @@ const SCALE = [
 ];
 const MAX = SCALE.length - 1;   // 5
 
-const APP = 'Popcorn';
+const APP = 'Movies';
 const API = 'https://api.themoviedb.org/3';
 const IMG = 'https://image.tmdb.org/t/p';
 const CSV_NAME = 'Movie Ratings.csv';
 const WATCH_NAME = 'Watchlist.csv';
-const GUIDE_NAME = 'Popcorn - how to get it back.txt';
+const GUIDE_NAME = 'Movies - how to get it back.txt';
 
 /* ================================================================== helpers */
 const $ = (s, el = document) => el.querySelector(s);
@@ -620,7 +620,7 @@ async function restore(fileList) {
   for (const f of fileList) { let b = null; try { b = readBackup(await f.text()); } catch { /* unreadable */ } if (b && b.rows.length) jobs.push(b); }
   if (!jobs.length) { toast(fileList.length > 1 ? 'Those files have no ratings or watchlist in them.' : 'That file has no ratings or watchlist in it.'); return; }
   const total = jobs.reduce((n, j) => n + j.rows.length, 0);
-  openSheet(`<div class="progress"><p id="rp">Restoring ${plural(total, 'movie', 'movies')}…</p><p class="s">Keep Popcorn open until this finishes.</p></div>`);
+  openSheet(`<div class="progress"><p id="rp">Restoring ${plural(total, 'movie', 'movies')}…</p><p class="s">Keep ${APP} open until this finishes.</p></div>`);
   const rp = () => $('#rp');
   let done = 0, added = 0, addedW = 0, missed = 0, offline = false;
   const stamp = Date.now();
