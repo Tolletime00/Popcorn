@@ -1,6 +1,6 @@
 # Popcorn
 
-A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log, and ask Claude for recommendations based on what you have and haven't seen.
+A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log, keep a watchlist of movies to see, and ask Claude for recommendations based on what you have and haven't seen.
 
 It is a web app that lives on the Home Screen. There is no App Store, no Mac and nothing to pay for.
 
@@ -15,8 +15,8 @@ It is a web app that lives on the Home Screen. There is no App Store, no Mac and
 
 - **Hosting:** GitHub Pages serves these files from this repository for free.
 - **Movie data and posters:** [TMDB](https://www.themoviedb.org). Each phone uses its owner's free TMDB API key, pasted into the app once. The key is stored on the phone, never in this repository.
-- **Ratings:** stored on the phone, inside the Home Screen app. They are not in this repository and never leave the phone except in the backup you save.
-- **Backup:** Log, the three dots, "Back up ratings" saves `Movie Ratings.csv` (Title, Year, Rating 1-5, Date Rated, TMDB ID). Save it to OneDrive.
+- **Ratings and watchlist:** stored on the phone, inside the Home Screen app. They are not in this repository and never leave the phone except in the backup you save.
+- **Backup:** Log, the three dots, "Back up" saves `Movie Ratings.csv` (Title, Year, Rating 1-5, Date Rated, TMDB ID) and, if you have one, `Watchlist.csv` (Title, Year, Date Added, TMDB ID). Save them to OneDrive.
 - **Recommendations:** the Recommend tab hands your request and your ratings to the Claude app.
 
 ## Getting it back on a new phone
@@ -27,7 +27,7 @@ Nothing has to be rebuilt. The app is this repository's GitHub Pages address.
 2. Tap Share, then Add to Home Screen. Keep "Open as Web App" on and tap Add.
 3. Open Popcorn from the Home Screen.
 4. Paste your TMDB key. It is on themoviedb.org under Settings, then API (the one called API Key).
-5. Go to Log, tap the three dots, choose "Restore from a backup" and pick `Movie Ratings.csv` from OneDrive.
+5. Go to Log, tap the three dots, choose "Restore from a backup" and pick `Movie Ratings.csv` and `Watchlist.csv` from OneDrive.
 
 Two things to know:
 
