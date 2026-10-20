@@ -1,5 +1,7 @@
 # Movies
 
+This repository also holds a second app, **Gym**, in the `gym` folder. Its own notes are in `gym/README.md`, and its address is the Movies address with `gym/` on the end.
+
 A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
 
 It is a web app that lives on the Home Screen. There is no App Store, no Mac and nothing to pay for.
