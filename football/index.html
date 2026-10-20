@@ -138,6 +138,11 @@ body[data-view=install] #tabs,body[data-view=team] #tabs{display:none}
 .slider .thumb{position:absolute;top:50%;left:calc((100% - 34px) * var(--p));width:34px;height:34px;margin-top:-17px;border-radius:17px;background:var(--acc);box-shadow:0 0 0 3px var(--bg);transition:left .06s linear;pointer-events:none}
 .slider input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
 .slider:focus-within .thumb{outline:2px solid var(--ink);outline-offset:3px}
+.oddsin{display:flex;align-items:center;gap:8px}
+.seg.mini{gap:4px}
+.seg.mini button{flex:none;width:38px;height:34px;border-radius:17px;font-size:18px}
+.box{width:72px;height:36px;border:0;border-radius:10px;background:var(--fill);text-align:center;font-size:17px;font-weight:500;outline:none;padding:0 6px}
+.box:focus-visible{box-shadow:inset 0 0 0 1.5px var(--ink)}
 .field{height:48px;border:0;border-radius:14px;background:var(--fill);padding:0 16px;font-size:17px;outline:none;width:100%;display:block}
 select.field{font-weight:500;letter-spacing:.04em}
 
@@ -493,8 +498,8 @@ function sliderHTML(id, label, values, index, fmt, mid) {
     <div class="slider" style="--p:${p}${mid != null ? `;--mid:${mid / (values.length - 1)}` : ''}"><div class="rail"><div class="fill"></div></div>${mid != null ? '<div class="mid"></div>' : ''}<div class="thumb"></div><input type="range" min="0" max="${values.length - 1}" step="1" value="${index}" aria-label="${esc(label)}"></div></div>`;
 }
 function wireSlider(root, id, values, fmt, onChange) {
-  const sl = $(`[data-sl="${id}"]`, root), el = $('.slider', sl), input = $('input', el), out = $('.lb b', sl);
-  const set = i => { i = Math.max(0, Math.min(values.length - 1, Math.round(i))); sl.dataset.i = i; el.style.setProperty('--p', String(values.length > 1 ? i / (values.length - 1) : 0)); input.value = i; out.textContent = fmt(values[i]); if (onChange) onChange(values[i]); };
+  const sl = $(`[data-sl="${id}"]`, root), el = $('.slider', sl), input = $('input[type=range]', el), out = $('.lb b', sl);
+  const set = (i, silent) => { i = Math.max(0, Math.min(values.length - 1, Math.round(i))); sl.dataset.i = i; el.style.setProperty('--p', String(values.length > 1 ? i / (values.length - 1) : 0)); input.value = i; if (out) out.textContent = fmt(values[i]); if (onChange && !silent) onChange(values[i]); };
   const fromX = x => { const b = el.getBoundingClientRect(), pad = 17; return (values.length - 1) * Math.min(1, Math.max(0, (x - b.left - pad) / (b.width - pad * 2))); };
   let drag = false;
   el.addEventListener('pointerdown', e => { drag = true; try { el.setPointerCapture(e.pointerId); } catch {} set(fromX(e.clientX)); e.preventDefault(); });
@@ -502,11 +507,12 @@ function wireSlider(root, id, values, fmt, onChange) {
   const end = () => { drag = false; };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   input.addEventListener('input', () => set(+input.value));
-  return () => values[+sl.dataset.i];
+  return { get: () => values[+sl.dataset.i], set: i => set(i, true) };
 }
 const WEEKS = Array.from({ length: 18 }, (_, i) => i + 1);
 const SPREADS = Array.from({ length: 81 }, (_, i) => (i - 40) / 2);
 const ODDS = [...Array.from({ length: 61 }, (_, i) => -400 + i * 5), ...Array.from({ length: 61 }, (_, i) => 100 + i * 5)];
+const nearestOdds = v => ODDS.reduce((best, o, i) => Math.abs(o - v) < Math.abs(ODDS[best] - v) ? i : best, 0);
 
 /* ---------- hold and drag (the Power Rankings) */
 function enableDrag(root, onDrop, onLift) {
@@ -725,18 +731,23 @@ function betSheet(id) {
       ${sliderHTML('week', 'Week', WEEKS, WEEKS.indexOf(week), v => `Week ${v}`)}
       <select class="field" data-k="team" aria-label="Team">${ABBRS.map(t => `<option value="${t}"${t === team ? ' selected' : ''}>${t}</option>`).join('')}</select>
       ${sliderHTML('spread', 'Spread', SPREADS, SPREADS.indexOf(spread), spreadText, 40)}
-      ${sliderHTML('odds', 'Odds', ODDS, Math.max(0, ODDS.indexOf(odds)), oddsText)}
+      ${sliderHTML('odds', 'Odds', ODDS, nearestOdds(odds), () => '').replace('<b class="num"></b>', `<span class="oddsin"><span class="seg mini" data-seg="sign"><button type="button" data-v="-" aria-pressed="${odds < 0}" aria-label="Minus">−</button><button type="button" data-v="+" aria-pressed="${odds >= 0}" aria-label="Plus">+</button></span><input class="box num" id="oddsbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" value="${Math.abs(odds)}" aria-label="Odds, the number"></span>`)}
       <p class="preview" id="pv"></p>
       ${b ? `<div class="seg" data-seg="out">${[['', 'Auto'], ['W', 'Win'], ['L', 'Loss'], ['P', 'Push']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(b.override || '') === v}">${l}</button>`).join('')}</div>` : ''}
       <button type="submit" class="primary">${b ? 'Save' : 'Add bet'}</button>
     </form>
     ${b ? `<p class="foot">${r.out && !b.override ? 'Settled from the final score.' : r.note ? esc(r.note) + '.' : 'Not settled yet.'} Auto settles it from the score once the game is final.</p><div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete bet</span></button></div>` : ''}`, el => {
-    const f = $('#f', el), sel = $('[data-k=team]', f), pv = $('#pv', el);
-    const getters = {};
-    const preview = () => { const t = sel.value, s = getters.spread ? getters.spread() : spread, o = getters.odds ? getters.odds() : odds; pv.innerHTML = `<b>${t} ${esc(spreadText(s))}</b> at ${esc(oddsText(o))} · risk ${esc(money(risk(o)).replace(/^[+−]/, ''))} to win $100`; };
-    getters.week = wireSlider(el, 'week', WEEKS, v => `Week ${v}`);
-    getters.spread = wireSlider(el, 'spread', SPREADS, spreadText, preview);
-    getters.odds = wireSlider(el, 'odds', ODDS, oddsText, preview);
+    const f = $('#f', el), sel = $('[data-k=team]', f), pv = $('#pv', el), box = $('#oddsbox', el), signSeg = $('[data-seg=sign]', el);
+    let oddsVal = odds, weekS, spreadS, oddsS;
+    const preview = () => { const t = sel.value, s = spreadS ? spreadS.get() : spread; pv.innerHTML = `<b>${t} ${esc(spreadText(s))}</b> at ${esc(oddsText(oddsVal))} · risk ${esc(money(risk(oddsVal)).replace(/^[+−]/, ''))} to win $100`; };
+    // the odds can be typed as well as slid; the two keep each other up to date
+    const paintOdds = () => { box.value = String(Math.abs(oddsVal)); for (const b of $$('button', signSeg)) b.setAttribute('aria-pressed', String((b.dataset.v === '-') === (oddsVal < 0))); };
+    weekS = wireSlider(el, 'week', WEEKS, v => `Week ${v}`);
+    spreadS = wireSlider(el, 'spread', SPREADS, spreadText, preview);
+    oddsS = wireSlider(el, 'odds', ODDS, () => '', v => { oddsVal = v; paintOdds(); preview(); });
+    box.addEventListener('input', () => { const n = parseInt(box.value.replace(/\D/g, ''), 10); if (!n) return; oddsVal = (oddsVal < 0 ? -1 : 1) * n; oddsS.set(nearestOdds(oddsVal)); preview(); });
+    box.addEventListener('blur', () => { if (Math.abs(oddsVal) < 100) oddsVal = oddsVal < 0 ? -100 : 100; paintOdds(); oddsS.set(nearestOdds(oddsVal)); preview(); });
+    signSeg.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; oddsVal = (b.dataset.v === '-' ? -1 : 1) * Math.abs(oddsVal); paintOdds(); oddsS.set(nearestOdds(oddsVal)); preview(); });
     sel.addEventListener('change', preview);
     preview();
     let override = b ? b.override || null : null;
@@ -744,7 +755,8 @@ function betSheet(id) {
     if (seg) seg.addEventListener('click', e => { const x = e.target.closest('button[data-v]'); if (!x) return; override = x.dataset.v || null; for (const y of $$('button', seg)) y.setAttribute('aria-pressed', String(y === x)); });
     f.addEventListener('submit', e => {
       e.preventDefault();
-      const rec = { week: getters.week(), team: sel.value, spread: getters.spread(), odds: getters.odds() };
+      if (Math.abs(oddsVal) < 100) oddsVal = oddsVal < 0 ? -100 : 100;
+      const rec = { week: weekS.get(), team: sel.value, spread: spreadS.get(), odds: oddsVal };
       if (b) Object.assign(b, rec, { override }); else bets.push({ id: 'b' + uid(), ...rec, override: null, placed: new Date().toISOString() });
       persist(1); closeSheet(); render(true);
     });
