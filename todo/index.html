@@ -108,8 +108,13 @@ button.sec{width:100%;text-align:left}
 button.secname{font:inherit;font-size:17px;font-weight:500;text-align:left}
 .rows{min-height:6px;padding:0 0 4px}
 .rows:empty{min-height:14px}
-.row{position:relative;display:grid;grid-template-columns:44px 14px minmax(0,1fr) auto;align-items:center;column-gap:6px;padding:2px 12px 2px 8px;min-height:46px;background:var(--bg);transition:opacity .15s}
+.row{position:relative;display:grid;grid-template-columns:44px 14px minmax(0,1fr) auto auto;align-items:center;column-gap:6px;padding:2px 6px 2px 8px;min-height:46px;background:var(--bg);transition:opacity .15s}
 .row.lifting{opacity:.25}
+.row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+.row .hd svg{width:20px;height:20px}
+.row.bye{overflow:hidden;animation:bye .28s ease-in forwards}
+@keyframes bye{to{opacity:0;min-height:0;height:0;padding-top:0;padding-bottom:0;transform:translateX(24px)}}
+.row.bye .ck,.row.bye .tx{padding:0}
 .row .ck{width:44px;height:44px;display:grid;place-items:center;color:var(--ink-3)}
 .row .ck i{width:24px;height:24px;border-radius:12px;box-shadow:inset 0 0 0 1.5px var(--ink-3);display:grid;place-items:center;color:transparent;transition:background .15s,box-shadow .15s,color .15s}
 .row .ck svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
@@ -124,6 +129,7 @@ button.secname{font:inherit;font-size:17px;font-weight:500;text-align:left}
 .row .s{font-size:13px;color:var(--ink-2);line-height:1.3}
 .row.done .t{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--ink-3)}
 .row .r{font-size:13px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:lining-nums;padding-right:4px}
+.row .r:last-child{padding-right:10px}
 .row .r.d{color:var(--ink-2)}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96;transform:scale(1.02)}
 .ghost .row{background:transparent}
@@ -231,6 +237,7 @@ const ICON = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.4 4.2 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.3 9.6l6-.9z"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10M7 15h10"/></svg>',
 };
 
 /* ================================================================== storage
@@ -414,6 +421,7 @@ function rowHTML(it, { kind, day = '', done = false, drag = true, right = '', su
     <i class="dot ${it.cat || 'n'}"></i>
     <button type="button" class="tx"><span class="t">${esc(it.text)}</span>${sub2 ? `<span class="s">${esc(sub2)}</span>` : ''}</button>
     <span class="r${done ? '' : ' d'}">${esc(right)}</span>
+    ${drag ? `<span class="hd" aria-hidden="true">${ICON.grip}</span>` : ''}
   </li>`;
 }
 const plusBtn = (attrs, label) => `<button type="button" class="plus" ${attrs} aria-label="${esc(label)}">${ICON.plus}</button>`;
@@ -426,17 +434,18 @@ function enableDrag(root, onDrop) {
   root.addEventListener('click', e => { if (Date.now() - dropped < 500) { e.stopPropagation(); e.preventDefault(); } }, true);   // letting go is not a tap
   root.addEventListener('pointerdown', e => {
     const row = e.target.closest('.row[data-drag]');
-    if (!row || e.button || e.target.closest('.ck')) return;
-    press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: setTimeout(() => lift(e), 300) };
+    if (!row || e.button || e.target.closest('.ck') || drag) return;
+    press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: 0 };
+    if (e.target.closest('.hd')) { e.preventDefault(); lift(); }   // the grip: no wait
+    else press.timer = setTimeout(lift, 300);                        // anywhere else: a short hold first
   });
   const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
   root.addEventListener('pointermove', e => {
-    if (press && !drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) cancel();
+    if (press && !drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) cancel();
     if (drag && e.pointerId === drag.id) move(e);
   });
-  const end = e => { if (drag && e.pointerId === drag.id) drop(); cancel(); };
-  root.addEventListener('pointerup', end);
-  root.addEventListener('pointercancel', end);
+  root.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) drop(true); cancel(); });
+  root.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drop(false); cancel(); });   // the browser took the touch: put the row back
   root.addEventListener('contextmenu', e => { if (e.target.closest('.row[data-drag]')) e.preventDefault(); });
   function lift() {
     const row = press.row, box = row.getBoundingClientRect();
@@ -480,7 +489,7 @@ function enableDrag(root, onDrop) {
     else if (drag.y > b.bottom - edge) viewEl.scrollTop += Math.ceil((drag.y - (b.bottom - edge)) / 6);
     raf = requestAnimationFrame(scrollLoop);
   }
-  function drop() {
+  function drop(keep) {
     cancelAnimationFrame(raf);
     const row = drag.row;
     drag.ghost.remove();
@@ -488,8 +497,21 @@ function enableDrag(root, onDrop) {
     document.body.classList.remove('dragging');
     document.removeEventListener('touchmove', prevent);
     drag = null; dropped = Date.now();
-    onDrop(row);
+    if (keep) onDrop(row); else render(true);
   }
+}
+// Tick a row: it shows as done for a moment (tap again if it was a slip), then slides away for good.
+const ticks = new Map();   // row id -> timer
+function tickRow(row, set, finish) {
+  const id = row.dataset.id + '|' + (row.dataset.day || '');
+  if (ticks.has(id)) { clearTimeout(ticks.get(id)); ticks.delete(id); set(false); row.classList.remove('done'); $('.ck', row).setAttribute('aria-pressed', 'false'); persist(); return; }
+  set(true); row.classList.add('done'); $('.ck', row).setAttribute('aria-pressed', 'true'); persist(1);
+  ticks.set(id, setTimeout(() => {
+    ticks.delete(id);
+    finish(); persist();
+    row.classList.add('bye');
+    setTimeout(() => { if (row.isConnected) row.remove(); }, 300);
+  }, 1000));
 }
 // After a drop, read the lists back from the page: which list each row sits in and in what order.
 const readLists = root => $$('[data-list]', root).map(sec => ({ key: sec.dataset.list, ids: $$('.row[data-drag]', sec).map(r => r.dataset.id) }));
@@ -518,14 +540,14 @@ const VIEWS = {
     const years = [...new Set(days.map(d => +d.slice(0, 4)))];
     const specials = {};   // day -> occurrences
     for (const it of special.slice().sort(byOrder)) for (const y of years) for (const o of occurrences(it, y)) (specials[o.day] = specials[o.day] || []).push({ ...it, text: o.text, note: o.note });
-    const dated = tasks.filter(x => x.date);
-    const overdue = dated.filter(x => x.date < t && !x.done).sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
+    const dated = tasks.filter(x => x.date && !x.done);
+    const overdue = dated.filter(x => x.date < t).sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
     const dayHTML = day => {
       const rel = relative(day);
       const items = [
         ...(specials[day] || []).map(s => rowHTML(s, { kind: 'special', day, drag: false })),
-        ...routine.filter(r => r.dow === dowOf(day)).sort(byOrder).map(r => rowHTML(r, { kind: 'routine', day, done: !!routineDone[`${r.id}|${day}`], drag: false })),
-        ...dated.filter(x => x.date === day).sort(byOrder).map(x => rowHTML(x, { kind: 'task', day, done: !!x.done })),
+        ...routine.filter(r => r.dow === dowOf(day) && !routineDone[`${r.id}|${day}`]).sort(byOrder).map(r => rowHTML(r, { kind: 'routine', day, drag: false })),
+        ...dated.filter(x => x.date === day).sort(byOrder).map(x => rowHTML(x, { kind: 'task', day })),
       ];
       return `<section class="day" data-list="${day}">
         <div class="sec${rel === 'Today' ? ' today' : ''}"><span class="nm">${esc(fmtLong(day))}</span>${rel ? `<span class="tag">${rel}</span>` : ''}${plusBtn(`data-add="${day}"`, `Add to ${fmtLong(day)}`)}</div>
@@ -548,10 +570,8 @@ const VIEWS = {
       const row = e.target.closest('.row'); if (!row) return;
       const { id, kind, day } = row.dataset;
       if (e.target.closest('.ck')) {
-        if (kind === 'task') { const x = taskById(id); if (!x) return; x.done = !x.done; x.doneAt = x.done ? new Date().toISOString() : null; row.classList.toggle('done', x.done); }
-        else if (kind === 'routine') { const key = `${id}|${day}`; if (routineDone[key]) delete routineDone[key]; else routineDone[key] = true; row.classList.toggle('done', !!routineDone[key]); }
-        $('.ck', row).setAttribute('aria-pressed', String(row.classList.contains('done')));
-        persist(1);
+        if (kind === 'task') { const x = taskById(id); if (x) tickRow(row, on => { x.done = on; }, () => { tasks = tasks.filter(t => t.id !== id); }); }
+        else if (kind === 'routine') { const key = `${id}|${day}`; tickRow(row, on => { if (on) routineDone[key] = true; else delete routineDone[key]; }, () => {}); }
         return;
       }
       if (e.target.closest('.tx')) {
@@ -594,9 +614,9 @@ const VIEWS = {
   /* ---------------- List: plain items, with sections if you want them */
   list() {
     const secs = sections.slice().sort(byOrder);
-    const rows = sid => tasks.filter(x => x.onList && (x.section || null) === sid).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || byOrder(a, b))
-      .map(x => rowHTML(x, { kind: 'task', done: !!x.done, right: x.date ? (x.date < today() && !x.done ? 'Overdue' : fmtDay(x.date)) : '' })).join('');
-    const hasAny = tasks.some(x => x.onList);
+    const rows = sid => tasks.filter(x => x.onList && !x.done && (x.section || null) === sid).sort(byOrder)
+      .map(x => rowHTML(x, { kind: 'task', right: x.date ? (x.date < today() ? 'Overdue' : fmtDay(x.date)) : '' })).join('');
+    const hasAny = tasks.some(x => x.onList && !x.done);
     viewEl.innerHTML = `<section class="page lst">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>List</h2><button type="button" class="icon-btn" id="add" aria-label="Add to the list">${ICON.plus}</button></header>
       ${hasAny || secs.length ? '' : '<p class="note">Anything you want to get to, in any order. Hold an item to move it. An item can be put on the Calendar from its page.</p>'}
@@ -618,7 +638,7 @@ const VIEWS = {
       if (sn) return sectionSheet(sn.dataset.section);
       const row = e.target.closest('.row'); if (!row) return;
       const x = taskById(row.dataset.id); if (!x) return;
-      if (e.target.closest('.ck')) { x.done = !x.done; x.doneAt = x.done ? new Date().toISOString() : null; persist(1); render(true); return; }
+      if (e.target.closest('.ck')) { tickRow(row, on => { x.done = on; }, () => { tasks = tasks.filter(t => t.id !== x.id); }); return; }
       if (e.target.closest('.tx')) editTask(x.id);
     });
     enableDrag(body, () => {
@@ -808,14 +828,11 @@ $('#pick').addEventListener('change', e => { const f = e.target.files && e.targe
 function moreSheet() {
   const n = meta.unsaved || 0;
   const status = n ? `${plural(n, 'change', 'changes')} since ${meta.lastBackup ? 'your backup on ' + new Date(meta.lastBackup).toLocaleDateString() : 'you started'}` : meta.lastBackup ? `Up to date. Last backed up ${new Date(meta.lastBackup).toLocaleDateString()}` : 'Not backed up yet';
-  const doneCount = tasks.filter(x => x.done).length;
   openSheet(`${head(APP)}
     <button type="button" class="item" id="backup"><span class="l">Back up</span><span class="s">${esc(status)}. Saves one file to OneDrive.</span></button>
     <label class="item" for="pick"><span class="l">Restore from a backup</span><span class="s">Pick ${BACKUP_NAME} from OneDrive</span></label>
-    <button type="button" class="item" id="clear" ${doneCount ? '' : 'disabled'}><span class="l">Clear ticked-off items</span><span class="s">${doneCount ? plural(doneCount, 'item', 'items') + ' on the Calendar and List' : 'Nothing ticked off'}</span></button>
-    <p class="about">Everything in ${APP} stays on this phone. Blue is personal, green is work. Hold an item to drag it.</p>`, el => {
+    <p class="about">Everything in ${APP} stays on this phone. Blue is personal, green is work. Tick an item and it goes; drag one by the lines at its end, or hold it anywhere.</p>`, el => {
     $('#backup', el).addEventListener('click', backup);
-    arm($('#clear', el), 'clear them', () => { tasks = tasks.filter(x => !x.done); persist(1); closeSheet(); render(true); toast('Cleared.'); });
   });
 }
 
@@ -825,7 +842,7 @@ document.addEventListener('focusout', () => setTimeout(() => { if (!/^(INPUT|TEX
 // Old ticks are forgotten after a season, so the phone never fills up.
 { const cutoff = addDays(today(), -120); let changed = false;
   for (const k of Object.keys(routineDone)) if (k.split('|')[1] < cutoff) { delete routineDone[k]; changed = true; }
-  const before = tasks.length; tasks = tasks.filter(x => !(x.done && !x.onList && x.date && x.date < cutoff)); if (tasks.length !== before) changed = true;
+  const before = tasks.length; tasks = tasks.filter(x => !x.done); if (tasks.length !== before) changed = true;
   if (changed) persist(); }
 render();
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.tab === 'cal') render(true); });   // a new day gets a new Today
