@@ -1,6 +1,6 @@
 # Movies
 
-This repository also holds two more apps: **Gym** in the `gym` folder and **Books** in the `books` folder. Each has its own notes (`gym/README.md`, `books/README.md`), and each one's address is the Movies address with `gym/` or `books/` on the end.
+This repository also holds three more apps: **Gym** in the `gym` folder, **Books** in the `books` folder and **To-Do** in the `todo` folder. Each has its own notes (`gym/README.md`, `books/README.md`, `todo/README.md`), and each one's address is the Movies address with `gym/`, `books/` or `todo/` on the end.
 
 A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
 
