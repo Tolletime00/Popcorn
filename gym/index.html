@@ -130,7 +130,8 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .exh .tg{font-size:14px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums lining-nums}
 .set{display:grid;grid-template-columns:26px minmax(0,1.3fr) auto minmax(0,1fr) 44px;align-items:center;column-gap:8px;padding:5px 0}
 .set .i{font-size:14px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums}
-.set .u{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.set .u{height:30px;padding:0 9px;border-radius:15px;background:var(--fill);font-size:13px;color:var(--ink-2);white-space:nowrap;transition:background .15s,color .15s}
+.set .u:active{background:var(--line)}
 .set .x{font-size:15px;color:var(--ink-3);text-align:center;width:14px}
 .set .w{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
 .set .ok{width:40px;height:40px;margin-left:4px;border-radius:20px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--ink-3);color:transparent;transition:background .15s,box-shadow .15s,color .15s}
@@ -139,6 +140,16 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .set.done .num{color:var(--ink)}
 .addset{display:block;padding:8px 0 8px 34px;font-size:15px;color:var(--ink-2)}
 .track .meta{padding:10px 20px 0;font-size:13px;color:var(--ink-3)}
+
+/* ---------- the sets slider (1 to 5) */
+.slider{position:relative;height:44px;touch-action:none;cursor:pointer;--p:.5}
+.slider .rail{position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--fill);overflow:hidden}
+.slider .fill{height:100%;width:calc(17px + (100% - 34px) * var(--p));background:var(--acc)}
+.slider .ticks{position:absolute;left:17px;right:17px;top:50%;height:0;display:flex;justify-content:space-between;pointer-events:none}
+.slider .ticks i{width:2px;height:2px;margin:-1px -1px 0;border-radius:1px;background:var(--ink-3)}
+.slider .thumb{position:absolute;top:50%;left:calc((100% - 34px) * var(--p));width:34px;height:34px;margin-top:-17px;border-radius:17px;display:grid;place-items:center;background:var(--acc);box-shadow:0 0 0 3px var(--bg);font-size:16px;font-weight:500;color:#000;font-variant-numeric:tabular-nums lining-nums;transition:left .12s ease-out;pointer-events:none}
+.slider input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
+.slider:focus-within .thumb{outline:2px solid var(--ink);outline-offset:3px}
 
 /* ---------- routines */
 .routines{min-height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
@@ -150,10 +161,12 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .exc{padding:10px 20px}
 .exc+.exc{border-top:1px solid var(--line)}
 .exc .l1{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:6px}
-.exc .l2{display:grid;grid-template-columns:auto 72px auto 72px;align-items:center;gap:8px;padding:8px 0 4px 2px}
-.exc .l2 label{font-size:14px;color:var(--ink-2)}
-.exc .l2 label+label{margin-left:10px}
-.exc .l2 .num{height:40px;font-size:17px}
+.exc .l2{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:10px;padding:8px 0 0 2px}
+.exc .l3{display:grid;grid-template-columns:44px 72px auto 72px minmax(0,1fr);align-items:center;gap:10px;padding:6px 0 6px 2px}
+.exc .l2 label,.exc .l3 label{font-size:14px;color:var(--ink-2)}
+.exc .l3 .to{font-size:14px;color:var(--ink-3);text-align:center}
+.exc .l3 .hint{font-size:13px;color:var(--ink-3);padding-left:4px}
+.exc .l3 .num{height:40px;font-size:17px}
 .addex{display:block;width:100%;padding:16px 20px 24px;font-size:17px;color:var(--ink-2);text-align:left}
 .addex b{font-weight:400;color:var(--ink)}
 
@@ -259,6 +272,10 @@ const niceDay = iso => { const d = new Date(iso); return isNaN(d) ? '' : dayFmt.
 const localDay = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
 const localTime = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
 const minutes = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
+const MAX_SETS = 5;
+const convert = (w, from, to) => w == null || from === to ? w : Math.round((from === 'kg' ? w * 2.2046226 : w / 2.2046226) * 10) / 10;
+const repsText = e => e.reps ? (e.repsHigh && e.repsHigh > e.reps ? `${e.reps}–${e.repsHigh}` : String(e.reps)) : '–';
+const parseReps = v => { const m = String(v ?? '').trim().match(/^(\d+)\s*(?:[-–to]+\s*(\d+))?$/i); if (!m) return { reps: null, repsHigh: null }; const lo = +m[1], hi = m[2] ? +m[2] : null; return { reps: lo || null, repsHigh: hi && hi > lo ? hi : null }; };
 function ago(iso) {
   if (!iso) return 'Never done';
   const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
@@ -313,7 +330,7 @@ function refreshNames() { $('#exnames').innerHTML = exerciseNames().map(n => `<o
 function lastSets(name) {
   const key = fold(name);
   if (!key) return [];
-  for (const w of sortedWorkouts()) { const e = w.exercises.find(x => fold(x.name) === key); if (e && e.sets.length) return e.sets; }
+  for (const w of sortedWorkouts()) { const e = w.exercises.find(x => fold(x.name) === key); if (e && e.sets.length) return e.sets.map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null, unit: s.unit || w.unit || settings.unit })); }
   return [];
 }
 
@@ -409,12 +426,12 @@ function csvOf(header, rows) {
 }
 function workoutsCSV() {
   const rows = [];
-  for (const w of sortedWorkouts()) for (const e of w.exercises) e.sets.forEach((s, i) => rows.push([localDay(w.started), localTime(w.started), w.name, e.name, i + 1, fmtNum(s.weight), s.reps ?? '', w.unit || settings.unit, minutes(w.started, w.finished || w.started)]));
+  for (const w of sortedWorkouts()) for (const e of w.exercises) e.sets.forEach((s, i) => rows.push([localDay(w.started), localTime(w.started), w.name, e.name, i + 1, fmtNum(s.weight), s.reps ?? '', s.unit || w.unit || settings.unit, minutes(w.started, w.finished || w.started)]));
   return csvOf(['Date', 'Time', 'Routine', 'Exercise', 'Set', 'Weight', 'Reps', 'Unit', 'Workout Minutes'], rows);
 }
 function routinesCSV() {
   const rows = [];
-  for (const r of sortedRoutines()) r.exercises.forEach((e, i) => rows.push([r.name, i + 1, e.name, e.sets, e.reps ?? '']));
+  for (const r of sortedRoutines()) r.exercises.forEach((e, i) => rows.push([r.name, i + 1, e.name, e.sets, e.reps ? repsText(e).replace('–', '-') : '']));
   return csvOf(['Routine', 'Order', 'Exercise', 'Sets', 'Reps'], rows);
 }
 async function backup() {
@@ -463,11 +480,12 @@ function readBackup(text) {
       const name = String(r[iRo] ?? '').trim(), ex = String(r[iEx] ?? '').trim(), reps = num(r[iRe]);
       if (isNaN(started) || !name || !ex || reps == null) continue;
       const key = started.toISOString() + '|' + fold(name);
-      if (!map.has(key)) map.set(key, { id: 'w' + uid(), routineId: null, name, started: started.toISOString(), finished: null, unit: iU >= 0 && /kg/i.test(r[iU]) ? 'kg' : 'lb', mins: iMin >= 0 ? num(r[iMin]) : null, exercises: [] });
+      const unit = iU >= 0 && /kg/i.test(r[iU]) ? 'kg' : 'lb';
+      if (!map.has(key)) map.set(key, { id: 'w' + uid(), routineId: null, name, started: started.toISOString(), finished: null, unit, mins: iMin >= 0 ? num(r[iMin]) : null, exercises: [] });
       const w = map.get(key);
       let e = w.exercises.find(x => fold(x.name) === fold(ex));
       if (!e) { e = { name: ex, sets: [] }; w.exercises.push(e); }
-      e.sets.push({ weight: iW >= 0 ? num(r[iW]) : null, reps: Math.round(reps) });
+      e.sets.push({ weight: iW >= 0 ? num(r[iW]) : null, reps: Math.round(reps), unit });
     }
     for (const w of map.values()) w.finished = new Date(new Date(w.started).getTime() + (w.mins || 45) * 60000).toISOString();
     return { kind: 'workouts', items: [...map.values()] };
@@ -477,9 +495,10 @@ function readBackup(text) {
     const name = String(r[iRo] ?? '').trim(), ex = String(r[iEx] ?? '').trim();
     if (!name || !ex) continue;
     if (!map.has(fold(name))) map.set(fold(name), { name, rows: [] });
-    map.get(fold(name)).rows.push({ order: iO >= 0 ? num(r[iO]) ?? 1e9 : map.get(fold(name)).rows.length, name: ex, sets: Math.max(1, Math.round(iSets >= 0 ? num(r[iSets]) ?? 3 : 3)), reps: iRe >= 0 ? (num(r[iRe]) == null ? null : Math.round(num(r[iRe]))) : null });
+    const rr = iRe >= 0 ? parseReps(r[iRe]) : { reps: null, repsHigh: null };
+    map.get(fold(name)).rows.push({ order: iO >= 0 ? num(r[iO]) ?? 1e9 : map.get(fold(name)).rows.length, name: ex, sets: Math.min(MAX_SETS, Math.max(1, Math.round(iSets >= 0 ? num(r[iSets]) ?? 3 : 3))), reps: rr.reps, repsHigh: rr.repsHigh });
   }
-  return { kind: 'routines', items: [...map.values()].map(g => ({ id: 'r' + uid(), name: g.name, created: new Date().toISOString(), updated: new Date().toISOString(), exercises: g.rows.sort((a, b) => a.order - b.order).map(x => ({ id: 'e' + uid(), name: x.name, sets: x.sets, reps: x.reps })) })) };
+  return { kind: 'routines', items: [...map.values()].map(g => ({ id: 'r' + uid(), name: g.name, created: new Date().toISOString(), updated: new Date().toISOString(), exercises: g.rows.sort((a, b) => a.order - b.order).map(x => ({ id: 'e' + uid(), name: x.name, sets: x.sets, reps: x.reps, repsHigh: x.repsHigh })) })) };
 }
 async function restore(fileList) {
   const jobs = [];
@@ -505,7 +524,7 @@ $('#pick').addEventListener('change', e => { const fs = [...(e.target.files || [
 
 /* ================================================================== routines */
 function newRoutine() {
-  const r = { id: 'r' + uid(), name: '', exercises: [{ id: 'e' + uid(), name: '', sets: 3, reps: 8 }], created: new Date().toISOString(), updated: new Date().toISOString() };
+  const r = { id: 'r' + uid(), name: '', exercises: [{ id: 'e' + uid(), name: '', sets: 3, reps: 8, repsHigh: null }], created: new Date().toISOString(), updated: new Date().toISOString() };
   routines.push(r); saveRoutines();
   go({ name: 'edit', id: r.id, fresh: true });
 }
@@ -528,16 +547,17 @@ function startWorkout(r) {
     exercises: r.exercises.map(e => {
       const last = lastSets(e.name);
       const n = Math.max(1, e.sets || 1);
-      return { name: e.name, target: { sets: n, reps: e.reps ?? null }, sets: Array.from({ length: n }, (_, i) => ({ weight: '', reps: '', done: false, last: last[Math.min(i, last.length - 1)] || null })) };
+      return { name: e.name, target: { sets: n, reps: e.reps ?? null, repsHigh: e.repsHigh ?? null }, sets: Array.from({ length: n }, (_, i) => { const l = last[Math.min(i, last.length - 1)] || null; return { weight: '', reps: '', unit: (l && l.unit) || settings.unit, done: false, last: l }; }) };
     }),
   };
   saveActive();
   goHome('home');
 }
+const lastWeight = s => s.last ? convert(s.last.weight, s.last.unit || settings.unit, s.unit || settings.unit) : null;   // last time's weight, in this set's unit
 function setValues(s, e) {   // what a set counts as, given what was typed and what was lifted last time
-  const w = num(s.weight) ?? (s.last ? s.last.weight : null);
+  const w = num(s.weight) ?? lastWeight(s);
   const reps = num(s.reps) ?? (s.last ? s.last.reps : null) ?? e.target.reps ?? null;
-  return { weight: w, reps: reps == null ? null : Math.round(reps) };
+  return { weight: w, reps: reps == null ? null : Math.round(reps), unit: s.unit || settings.unit };
 }
 async function finishWorkout() {
   const done = active.exercises.map(e => ({ name: e.name, sets: e.sets.filter(s => s.done || String(s.reps).trim() !== '').map(s => setValues(s, e)).filter(s => s.reps != null) })).filter(e => e.sets.length);
@@ -618,12 +638,11 @@ const VIEWS = {
 
   /* ---------------- the workout in progress */
   track(page) {
-    const unit = active.unit || settings.unit;
     const block = (e, ei) => `<div class="ex" data-e="${ei}">
-      <div class="exh"><span class="n">${esc(e.name)}</span><span class="tg">${e.target.sets} × ${e.target.reps ?? '–'}</span></div>
+      <div class="exh"><span class="n">${esc(e.name)}</span><span class="tg">${e.target.sets} × ${repsText(e.target)}</span></div>
       ${e.sets.map((s, si) => `<div class="set${s.done ? ' done' : ''}" data-s="${si}">
         <span class="i">${si + 1}</span>
-        <span class="w"><input class="num" type="text" inputmode="decimal" data-k="weight" value="${esc(s.weight)}" placeholder="${s.last && s.last.weight != null ? esc(fmtNum(s.last.weight)) : '–'}" aria-label="Weight, set ${si + 1}"><span class="u">${unit}</span></span>
+        <span class="w"><input class="num" type="text" inputmode="decimal" data-k="weight" value="${esc(s.weight)}" placeholder="${lastWeight(s) != null ? esc(fmtNum(lastWeight(s))) : '–'}" aria-label="Weight, set ${si + 1}"><button type="button" class="u" data-unit aria-label="Weight unit for set ${si + 1}, tap to switch">${s.unit || settings.unit}</button></span>
         <span class="x">×</span>
         <input class="num" type="text" inputmode="numeric" data-k="reps" value="${esc(s.reps)}" placeholder="${s.last && s.last.reps != null ? esc(s.last.reps) : (e.target.reps ?? '–')}" aria-label="Reps, set ${si + 1}">
         <button type="button" class="ok" aria-pressed="${s.done}" aria-label="Set ${si + 1} done">${ICON.check}</button>
@@ -645,6 +664,20 @@ const VIEWS = {
       saveActive();
     });
     blocks.addEventListener('click', e => {
+      const u = e.target.closest('[data-unit]');
+      if (u) {   // this set and the ones after it in the exercise that are not logged yet
+        const row = u.closest('.set'), exEl = u.closest('.ex'), ex = active.exercises[+exEl.dataset.e], si = +row.dataset.s;
+        const next = (ex.sets[si].unit || settings.unit) === 'kg' ? 'lb' : 'kg';
+        ex.sets.forEach((s, i) => {
+          if (i < si || (i > si && s.done)) return;
+          s.unit = next;
+          const r = $(`.set[data-s="${i}"]`, exEl);
+          $('[data-unit]', r).textContent = next;
+          $('[data-k=weight]', r).placeholder = lastWeight(s) != null ? fmtNum(lastWeight(s)) : '–';
+        });
+        saveActive();
+        return;
+      }
       const ok = e.target.closest('.ok');
       if (ok) {
         const row = ok.closest('.set'), exEl = ok.closest('.ex'), ex = active.exercises[+exEl.dataset.e], s = ex.sets[+row.dataset.s];
@@ -662,7 +695,7 @@ const VIEWS = {
       if (add) {
         const exEl = add.closest('.ex'), ex = active.exercises[+exEl.dataset.e];
         const prev = ex.sets[ex.sets.length - 1];
-        ex.sets.push({ weight: '', reps: '', done: false, last: prev ? { weight: num(prev.weight) ?? (prev.last ? prev.last.weight : null), reps: num(prev.reps) ?? (prev.last ? prev.last.reps : null) } : null });
+        ex.sets.push({ weight: '', reps: '', unit: prev ? prev.unit : settings.unit, done: false, last: prev ? { weight: num(prev.weight) ?? lastWeight(prev), reps: num(prev.reps) ?? (prev.last ? prev.last.reps : null), unit: prev.unit || settings.unit } : null });
         saveActive();
         const y = viewEl.scrollTop, sy = blocks.scrollTop;
         exEl.outerHTML = block(ex, +exEl.dataset.e);
@@ -694,7 +727,8 @@ const VIEWS = {
     if (!r) { back(); return; }
     const row = (e, i) => `<li class="exc" data-i="${i}">
       <div class="l1"><input class="field" type="text" list="exnames" value="${esc(e.name)}" placeholder="Exercise" autocapitalize="words" autocorrect="off" enterkeyhint="done" data-k="name" aria-label="Exercise ${i + 1}"><button type="button" class="icon-btn" data-opt aria-label="Options for exercise ${i + 1}">${ICON.more}</button></div>
-      <div class="l2"><label for="s${i}">Sets</label><input class="num" id="s${i}" type="text" inputmode="numeric" value="${esc(e.sets)}" data-k="sets"><label for="r${i}">Reps</label><input class="num" id="r${i}" type="text" inputmode="numeric" value="${esc(e.reps ?? '')}" placeholder="–" data-k="reps"></div>
+      <div class="l2"><label>Sets</label><div class="slider" data-sets style="--p:${(Math.min(MAX_SETS, Math.max(1, e.sets)) - 1) / (MAX_SETS - 1)}"><div class="rail"><div class="fill"></div></div><div class="ticks">${'<i></i>'.repeat(MAX_SETS)}</div><div class="thumb">${Math.min(MAX_SETS, Math.max(1, e.sets))}</div><input type="range" min="1" max="${MAX_SETS}" step="1" value="${Math.min(MAX_SETS, Math.max(1, e.sets))}" data-k="sets" aria-label="Sets for exercise ${i + 1}"></div></div>
+      <div class="l3"><label for="r${i}">Reps</label><input class="num" id="r${i}" type="text" inputmode="numeric" value="${esc(e.reps ?? '')}" placeholder="–" data-k="reps" aria-label="Reps, or the low end of a range"><span class="to">to</span><input class="num" type="text" inputmode="numeric" value="${esc(e.repsHigh ?? '')}" placeholder="–" data-k="repsHigh" aria-label="High end of the rep range, optional"><span class="hint">optional</span></div>
     </li>`;
     viewEl.innerHTML = `<section class="editor">
       <header class="bar"><button type="button" class="icon-btn" id="back" aria-label="Back">${ICON.back}</button><h2 id="ttl">${esc(r.name || 'New routine')}</h2><button type="button" class="icon-btn" id="more" aria-label="Routine options">${ICON.more}</button></header>
@@ -709,15 +743,31 @@ const VIEWS = {
       const inp = e.target.closest('input[data-k]'); if (!inp) return;
       const ex = r.exercises[+inp.closest('.exc').dataset.i];
       if (inp.dataset.k === 'name') ex.name = inp.value;
-      else if (inp.dataset.k === 'sets') ex.sets = Math.max(1, Math.min(20, Math.round(num(inp.value) ?? 1)));
-      else ex.reps = num(inp.value) == null ? null : Math.max(1, Math.min(999, Math.round(num(inp.value))));
+      else if (inp.dataset.k === 'sets') setSets(inp.closest('.slider'), ex, +inp.value);
+      else { const v = num(inp.value); ex[inp.dataset.k] = v == null ? null : Math.max(1, Math.min(999, Math.round(v))); }
       save();
     });
-    exs.addEventListener('focusout', e => {   // tidy the number boxes once you leave them
-      const inp = e.target.closest('input[data-k]'); if (!inp || inp.dataset.k === 'name') return;
+    exs.addEventListener('focusout', e => {   // tidy the rep boxes once you leave them
+      const inp = e.target.closest('input[data-k]'); if (!inp || inp.dataset.k === 'name' || inp.dataset.k === 'sets') return;
       const ex = r.exercises[+inp.closest('.exc').dataset.i];
-      inp.value = inp.dataset.k === 'sets' ? ex.sets : (ex.reps ?? '');
+      if (ex.reps && ex.repsHigh && ex.repsHigh <= ex.reps) { ex.repsHigh = null; save(); }
+      if (!ex.reps && ex.repsHigh) { ex.repsHigh = null; save(); }   // no low end means no target at all
+      const row = inp.closest('.exc');
+      $('[data-k=reps]', row).value = ex.reps ?? ''; $('[data-k=repsHigh]', row).value = ex.repsHigh ?? '';
     });
+    // the sets slider answers a tap anywhere on it as well as a drag
+    const setSets = (sl, ex, v) => {
+      v = Math.min(MAX_SETS, Math.max(1, Math.round(v)));
+      ex.sets = v;
+      sl.style.setProperty('--p', String((v - 1) / (MAX_SETS - 1)));
+      $('.thumb', sl).textContent = v; $('input', sl).value = v;
+    };
+    const fromX = (sl, x) => { const b = sl.getBoundingClientRect(), pad = 17; return 1 + (MAX_SETS - 1) * Math.min(1, Math.max(0, (x - b.left - pad) / (b.width - pad * 2))); };
+    let drag = null;
+    exs.addEventListener('pointerdown', e => { const sl = e.target.closest('.slider'); if (!sl) return; drag = sl; try { sl.setPointerCapture(e.pointerId); } catch {} setSets(sl, r.exercises[+sl.closest('.exc').dataset.i], fromX(sl, e.clientX)); save(); e.preventDefault(); });
+    exs.addEventListener('pointermove', e => { if (drag) { setSets(drag, r.exercises[+drag.closest('.exc').dataset.i], fromX(drag, e.clientX)); save(); } });
+    const endDrag = () => { drag = null; };
+    exs.addEventListener('pointerup', endDrag); exs.addEventListener('pointercancel', endDrag);
     const repaint = () => { page.scroll = viewEl.scrollTop; exs.innerHTML = r.exercises.map(row).join(''); viewEl.scrollTop = page.scroll; };
     exs.addEventListener('click', e => {
       const b = e.target.closest('[data-opt]'); if (!b) return;
@@ -734,7 +784,8 @@ const VIEWS = {
       });
     });
     $('#addex').addEventListener('click', () => {
-      r.exercises.push({ id: 'e' + uid(), name: '', sets: 3, reps: r.exercises.length ? r.exercises[r.exercises.length - 1].reps : 8 });
+      const prev = r.exercises[r.exercises.length - 1];
+      r.exercises.push({ id: 'e' + uid(), name: '', sets: 3, reps: prev ? prev.reps : 8, repsHigh: prev ? prev.repsHigh ?? null : null });
       saveRoutines(); repaint();
       const last = $('.exc:last-child input[data-k=name]', exs);
       if (last) { last.focus(); last.scrollIntoView({ block: 'center' }); }
@@ -776,7 +827,7 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="detail">
       <header class="bar"><button type="button" class="icon-btn" id="back" aria-label="Back">${ICON.back}</button><h2>${esc(w.name)}</h2><button type="button" class="icon-btn" id="more" aria-label="Workout options">${ICON.more}</button></header>
       <p class="when">${esc(longFmt.format(new Date(w.started)))}, ${esc(timeFmt.format(new Date(w.started)))} · ${minutes(w.started, w.finished || w.started)} min · ${plural(setCount(w), 'set', 'sets')}</p>
-      ${w.exercises.map(e => `<div class="ex"><div class="exh"><span class="n">${esc(e.name)}</span></div>${e.sets.map((s, i) => `<div class="sl"><span class="i">${i + 1}</span><span>${s.weight == null ? '–' : esc(fmtNum(s.weight))} <span class="u">${esc(w.unit || settings.unit)}</span></span><span class="x">×</span><span>${esc(s.reps)}</span></div>`).join('')}</div>`).join('')}
+      ${w.exercises.map(e => `<div class="ex"><div class="exh"><span class="n">${esc(e.name)}</span></div>${e.sets.map((s, i) => `<div class="sl"><span class="i">${i + 1}</span><span>${s.weight == null ? '–' : esc(fmtNum(s.weight))} <span class="u">${esc(s.unit || w.unit || settings.unit)}</span></span><span class="x">×</span><span>${esc(s.reps)}</span></div>`).join('')}</div>`).join('')}
     </section>`;
     $('#back').addEventListener('click', back);
     $('#more').addEventListener('click', () => openSheet(`${head(w.name)}<button type="button" class="item danger" id="del"><span class="l">Delete this workout</span></button>`, el => arm($('#del', el), 'delete', () => { workouts = workouts.filter(x => x.id !== w.id); saveWorkouts(1); closeSheet(true); toast('Workout deleted.'); back(); })));
@@ -791,10 +842,10 @@ function moreSheet() {
   openSheet(`${head(`${plural(workouts.length, 'workout', 'workouts')}, ${plural(routines.length, 'routine', 'routines')}`)}
     <button type="button" class="item" id="backup"><span class="l">Back up</span><span class="s">${esc(status)}. Save the spreadsheets to OneDrive.</span></button>
     <label class="item" for="pick"><span class="l">Restore from a backup</span><span class="s">Pick ${WORKOUTS_CSV} and ${ROUTINES_CSV} from OneDrive</span></label>
-    <div class="item" style="padding-bottom:4px"><span class="l">Weight unit</span></div>
+    <div class="item" style="padding-bottom:4px"><span class="l">Usual weight unit</span><span class="s">Each set can be switched while you train</span></div>
     <div class="seg"><button type="button" data-unit="lb" aria-pressed="${settings.unit === 'lb'}">lb</button><button type="button" data-unit="kg" aria-pressed="${settings.unit === 'kg'}">kg</button></div>`, el => {
     $('#backup', el).addEventListener('click', backup);
-    $$('[data-unit]', el).forEach(b => b.addEventListener('click', () => { settings.unit = b.dataset.unit; saveSettings(); $$('[data-unit]', el).forEach(x => x.setAttribute('aria-pressed', String(x === b))); if (active) { active.unit = settings.unit; saveActive(); } }));
+    $$('[data-unit]', el).forEach(b => b.addEventListener('click', () => { settings.unit = b.dataset.unit; saveSettings(); $$('[data-unit]', el).forEach(x => x.setAttribute('aria-pressed', String(x === b))); }));
   });
 }
 
@@ -804,7 +855,7 @@ void ticker;
 document.addEventListener('touchstart', () => {}, { passive: true });   // iPhone Safari shows pressed states only once something listens for touches
 document.addEventListener('focusout', () => setTimeout(() => { if (!/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '')) window.scrollTo(0, 0); }, 60));
 history.replaceState({ d: 0 }, '');
-for (const r of [...routines]) tidyRoutine(r.id);   // a routine left half-edited when the app closed
+for (const r of [...routines]) { for (const e of r.exercises) e.sets = Math.min(MAX_SETS, Math.max(1, e.sets || 1)); tidyRoutine(r.id); }   // a routine left half-edited when the app closed
 refreshNames();
 render();
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {

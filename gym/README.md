@@ -1,6 +1,6 @@
 # Gym
 
-A personal workout tracker for iPhone. Set up your routines (the exercises you do and how many sets of each), then work through one and record the weight and reps of every set. Last time's numbers are filled in for you, so logging a set is one tap unless something changed.
+A personal workout tracker for iPhone. Set up your routines (the exercises you do, one to five sets of each, and a rep target or range like 8 to 12), then work through one and record the weight and reps of every set. Each set has its own lb/kg switch, so kilogram plates and pound dumbbells can share a workout. Last time's numbers are filled in for you, so logging a set is one tap unless something changed.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
 
@@ -15,7 +15,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 
 - **Hosting:** GitHub Pages serves this folder from the `popcorn` repository, next to the Movies app.
 - **Routines and workouts:** stored on the phone, inside the Home Screen app. Nothing is sent anywhere.
-- **Backup:** History, the three dots, "Back up" saves `Workouts.csv` (one row per set: date, time, routine, exercise, set, weight, reps) and `Routines.csv` (routine, order, exercise, sets, reps). Save them to OneDrive.
+- **Backup:** History, the three dots, "Back up" saves `Workouts.csv` (one row per set: date, time, routine, exercise, set, weight, reps, unit) and `Routines.csv` (routine, order, exercise, sets, reps or a range like 8-12). Save them to OneDrive.
 
 ## Getting it back on a new phone
 
