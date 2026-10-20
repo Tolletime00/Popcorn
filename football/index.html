@@ -108,11 +108,12 @@ body[data-view=install] #tabs,body[data-view=team] #tabs{display:none}
 
 /* ---------- Bets */
 .tally{display:grid;justify-items:end;line-height:1.15;padding-right:8px}
-.tally .pl{font-size:18px;font-weight:500}
-.tally .rec{font-size:12px;color:var(--ink-3)}
+.tally .pl{font-size:19px;font-weight:500}
+.tally .rec{font-size:15px;font-weight:500;color:var(--ink);letter-spacing:.02em}
 .pos{color:var(--win)}.neg{color:var(--loss)}
 .bets{padding:4px 0 8px}
 .bet{display:grid;grid-template-columns:44px minmax(0,1fr) 54px 30px 72px;align-items:center;column-gap:6px;width:100%;padding:10px 20px;text-align:left}
+.wkline{border:0;border-top:1px solid var(--line);margin:6px 20px}
 .bet:active{background:var(--fill)}
 .bet .wk{font-size:13px;color:var(--ink-3)}
 .bet .b{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -514,6 +515,7 @@ const WEEKS = Array.from({ length: 18 }, (_, i) => i + 1);
 const SPREADS = Array.from({ length: 81 }, (_, i) => (i - 40) / 2);
 const ODDS = [...Array.from({ length: 61 }, (_, i) => -400 + i * 5), ...Array.from({ length: 61 }, (_, i) => 100 + i * 5)];
 const nearestOdds = v => ODDS.reduce((best, o, i) => Math.abs(o - v) < Math.abs(ODDS[best] - v) ? i : best, 0);
+const nearestSpread = v => SPREADS.reduce((best, o, i) => Math.abs(o - v) < Math.abs(SPREADS[best] - v) ? i : best, 0);
 
 /* ---------- hold and drag (the Power Rankings) */
 function enableDrag(root, onDrop, onLift) {
@@ -605,10 +607,10 @@ const VIEWS = {
     const rows = bets.map(b => ({ b, r: settle(b) })).sort((a, c) => c.b.week - a.b.week || (c.b.placed || '').localeCompare(a.b.placed || ''));
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Bets</h2>
-        <div class="tally right num" aria-label="Season"><span class="pl ${s.pl > 0 ? 'pos' : s.pl < 0 ? 'neg' : ''}">${money(s.pl)}</span><span class="rec">${bets.length ? s.text : 'No bets yet'}</span></div></header>
+        <div class="tally right num" aria-label="Season"><span class="pl ${s.pl > 0 ? 'pos' : s.pl < 0 ? 'neg' : ''}">${money(Math.round(s.pl))}</span><span class="rec">${bets.length ? s.text : 'No bets yet'}</span></div></header>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh scores">${ICON.refresh}Refresh</button></div>
       <div class="topbtn"><button type="button" class="primary" id="new">New bet</button></div>
-      ${rows.length ? `<div class="bets"><div class="head"><span>Wk</span><span>Bet</span><span>Odds</span><span></span><span>P/L</span></div>${rows.map(({ b, r }) => `<button type="button" class="bet ${r.out || 'open'}" data-id="${esc(b.id)}">
+      ${rows.length ? `<div class="bets"><div class="head"><span>Wk</span><span>Bet</span><span>Odds</span><span></span><span>P/L</span></div>${rows.map(({ b, r }, i) => `${i && rows[i - 1].b.week !== b.week ? '<hr class="wkline">' : ''}<button type="button" class="bet ${r.out || 'open'}" data-id="${esc(b.id)}">
           <span class="wk num">Wk ${b.week}</span>
           <span><span class="b num">${esc(b.team)} ${esc(spreadText(b.spread))}</span>${r.note ? `<br><span class="s">${esc(r.note)}</span>` : ''}</span>
           <span class="odds num">${esc(oddsText(b.odds))}</span>
@@ -732,21 +734,25 @@ function betSheet(id) {
   openSheet(`${head(b ? 'Bet' : 'New bet')}<form class="form" id="f" autocomplete="off">
       ${sliderHTML('week', 'Week', WEEKS, WEEKS.indexOf(week), v => `Week ${v}`)}
       <select class="field" data-k="team" aria-label="Team">${ABBRS.map(t => `<option value="${t}"${t === team ? ' selected' : ''}>${t}</option>`).join('')}</select>
-      ${sliderHTML('spread', 'Spread', SPREADS, SPREADS.indexOf(spread), spreadText, 40)}
+      ${sliderHTML('spread', 'Spread', SPREADS, nearestSpread(spread), () => '', 40).replace('<b class="num"></b>', `<span class="oddsin"><span class="seg mini" data-seg="ssign"><button type="button" data-v="-" aria-pressed="${spread < 0}" aria-label="Minus, giving points">−</button><button type="button" data-v="+" aria-pressed="${spread >= 0}" aria-label="Plus, getting points">+</button></span><input class="box num" id="spreadbox" type="text" inputmode="decimal" maxlength="5" value="${Math.abs(spread)}" aria-label="Spread, the number"></span>`)}
       ${sliderHTML('odds', 'Odds', ODDS, nearestOdds(odds), () => '').replace('<b class="num"></b>', `<span class="oddsin"><span class="seg mini" data-seg="sign"><button type="button" data-v="-" aria-pressed="${odds < 0}" aria-label="Minus">−</button><button type="button" data-v="+" aria-pressed="${odds >= 0}" aria-label="Plus">+</button></span><input class="box num" id="oddsbox" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" value="${Math.abs(odds)}" aria-label="Odds, the number"></span>`)}
       <p class="preview" id="pv"></p>
       ${b ? `<div class="seg" data-seg="out">${[['', 'Auto'], ['W', 'Win'], ['L', 'Loss'], ['P', 'Push']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(b.override || '') === v}">${l}</button>`).join('')}</div>` : ''}
       <button type="submit" class="primary">${b ? 'Save' : 'Add bet'}</button>
     </form>
     ${b ? `<p class="foot">${r.out && !b.override ? 'Settled from the final score.' : r.note ? esc(r.note) + '.' : 'Not settled yet.'} Auto settles it from the score once the game is final.</p><div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete bet</span></button></div>` : ''}`, el => {
-    const f = $('#f', el), sel = $('[data-k=team]', f), pv = $('#pv', el), box = $('#oddsbox', el), signSeg = $('[data-seg=sign]', el);
-    let oddsVal = odds, weekS, spreadS, oddsS;
-    const preview = () => { const t = sel.value, s = spreadS ? spreadS.get() : spread; pv.innerHTML = `<b>${t} ${esc(spreadText(s))}</b> at ${esc(oddsText(oddsVal))} · risk ${esc(money(risk(oddsVal)).replace(/^[+−]/, ''))} to win $100`; };
-    // the odds can be typed as well as slid; the two keep each other up to date
+    const f = $('#f', el), sel = $('[data-k=team]', f), pv = $('#pv', el), box = $('#oddsbox', el), signSeg = $('[data-seg=sign]', el), sbox = $('#spreadbox', el), ssignSeg = $('[data-seg=ssign]', el);
+    let oddsVal = odds, spreadVal = spread, weekS, spreadS, oddsS;
+    const preview = () => { const t = sel.value; pv.innerHTML = `<b>${t} ${esc(spreadText(spreadVal))}</b> at ${esc(oddsText(oddsVal))} · risk ${esc(money(risk(oddsVal)).replace(/^[+−]/, ''))} to win $100`; };
+    // the odds and the spread can be typed as well as slid; each box and slider keep each other up to date
     const paintOdds = () => { box.value = String(Math.abs(oddsVal)); for (const b of $$('button', signSeg)) b.setAttribute('aria-pressed', String((b.dataset.v === '-') === (oddsVal < 0))); };
+    const paintSpread = () => { sbox.value = String(Math.abs(spreadVal)); for (const b of $$('button', ssignSeg)) b.setAttribute('aria-pressed', String((b.dataset.v === '-') === (spreadVal < 0))); };
     weekS = wireSlider(el, 'week', WEEKS, v => `Week ${v}`);
-    spreadS = wireSlider(el, 'spread', SPREADS, spreadText, preview);
+    spreadS = wireSlider(el, 'spread', SPREADS, () => '', v => { spreadVal = v; paintSpread(); preview(); });
     oddsS = wireSlider(el, 'odds', ODDS, () => '', v => { oddsVal = v; paintOdds(); preview(); });
+    sbox.addEventListener('input', () => { const n = parseFloat(sbox.value.replace(/[^0-9.]/g, '')); if (!Number.isFinite(n)) return; spreadVal = Math.round(n * 2) / 2 * (spreadVal < 0 || (spreadVal === 0 && $('[data-v="-"]', ssignSeg).getAttribute('aria-pressed') === 'true') ? -1 : 1); spreadS.set(nearestSpread(spreadVal)); preview(); });
+    sbox.addEventListener('blur', () => { if (!Number.isFinite(spreadVal)) spreadVal = 0; spreadVal = Math.max(-50, Math.min(50, spreadVal)); paintSpread(); spreadS.set(nearestSpread(spreadVal)); preview(); });
+    ssignSeg.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; spreadVal = (b.dataset.v === '-' ? -1 : 1) * Math.abs(spreadVal); paintSpread(); spreadS.set(nearestSpread(spreadVal)); preview(); });
     box.addEventListener('input', () => { const n = parseInt(box.value.replace(/\D/g, ''), 10); if (!n) return; oddsVal = (oddsVal < 0 ? -1 : 1) * n; oddsS.set(nearestOdds(oddsVal)); preview(); });
     box.addEventListener('blur', () => { if (Math.abs(oddsVal) < 100) oddsVal = oddsVal < 0 ? -100 : 100; paintOdds(); oddsS.set(nearestOdds(oddsVal)); preview(); });
     signSeg.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; oddsVal = (b.dataset.v === '-' ? -1 : 1) * Math.abs(oddsVal); paintOdds(); oddsS.set(nearestOdds(oddsVal)); preview(); });
@@ -758,7 +764,7 @@ function betSheet(id) {
     f.addEventListener('submit', e => {
       e.preventDefault();
       if (Math.abs(oddsVal) < 100) oddsVal = oddsVal < 0 ? -100 : 100;
-      const rec = { week: weekS.get(), team: sel.value, spread: spreadS.get(), odds: oddsVal };
+      const rec = { week: weekS.get(), team: sel.value, spread: spreadVal, odds: oddsVal };
       if (b) Object.assign(b, rec, { override }); else bets.push({ id: 'b' + uid(), ...rec, override: null, placed: new Date().toISOString() });
       persist(1); closeSheet(); render(true);
     });
