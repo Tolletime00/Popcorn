@@ -242,7 +242,9 @@ const sortKey = t => fold(t).replace(/^(the|a|an)\s+/, '');
 const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const niceDay = iso => { const d = new Date(iso); return isNaN(d) ? '' : dayFmt.format(d); };
 const localDay = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
-const yearOf = v => { const m = String(v ?? '').match(/\d{4}/); return m ? +m[0] : null; };
+const yearOf = v => { const t = String(v ?? '').trim(), m = t.match(/-?\d{1,4}/); if (!m) return null; let y = parseInt(m[0], 10); if (y > 0 && /\b(bc|bce)\b/i.test(t)) y = -y; return Number.isFinite(y) ? y : null; };
+const yearText = y => y == null ? '' : y < 0 ? `${-y} BC` : String(y);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 const ICON = {
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>',
@@ -272,8 +274,11 @@ function persist(changes = 0) {
 const doneById = id => finished.find(b => b.id === id);
 const listedById = id => list.find(b => b.id === id);
 // Newest year first, A to Z within a year.
-const shelfSorted = items => [...items].sort((a, b) => (b.year || 0) - (a.year || 0) || collator.compare(sortKey(a.title), sortKey(b.title)));
-const label = b => b.title + (b.author ? ` by ${b.author}` : '') + (b.year ? ` (${b.year})` : '');
+const shelfSorted = items => [...items].sort((a, b) => (b.year ?? -1e9) - (a.year ?? -1e9) || collator.compare(sortKey(a.title), sortKey(b.title)));
+const label = b => b.title + (b.author ? ` by ${b.author}` : '') + (b.year != null ? ` (${yearText(b.year)})` : '');
+// A book typed in or restored from a plain list has no Open Library ID yet; the app finds one on its own.
+const isOL = id => /^OL\d+W$/.test(String(id || ''));
+const sameBook = (a, b) => fold(a.title) === fold(b.title) && fold(a.author || '') === fold(b.author || '');
 
 /* ================================================================== Open Library */
 class Problem extends Error { constructor(kind) { super(kind); this.kind = kind; } }
@@ -351,8 +356,9 @@ const slim = d => ({
   year: d.first_publish_year || null, cover: d.cover_i || null, genres: genresOf(d.subject), synopsis: '',
 });
 
+const FIELDS = 'key,title,author_name,first_publish_year,cover_i,subject,edition_count';
 async function searchBooks(q, page = 1) {
-  const d = await ol('/search.json', { q, fields: 'key,title,author_name,first_publish_year,cover_i,subject,edition_count', limit: '10', page: String(page), lang: 'en' });
+  const d = await ol('/search.json', { q, fields: FIELDS, limit: '10', page: String(page), lang: 'en' });
   return { items: rank(arr(d.docs).filter(x => x.key).map(slim), q), pages: Math.max(1, Math.ceil((d.numFound || d.num_found || 0) / 10)) };
 }
 
@@ -399,7 +405,29 @@ async function fetchBlurb(title, author) {
   return hit ? untag(hit) : '';
 }
 // Everything the detail page shows, found once and kept on the phone.
+// Finds the Open Library work for a book that only has a title and an author.
+async function lookup(b) {
+  const author = String(b.author || '').split(/\s*[,&]\s*|\s+and\s+/)[0].trim();
+  const docs = async params => arr((await ol('/search.json', { ...params, fields: FIELDS, limit: '5', lang: 'en' })).docs).filter(x => x.key).map(slim);
+  let hits = author ? await docs({ title: b.title, author }) : await docs({ q: b.title });
+  if (!hits.length && author) hits = await docs({ q: `${b.title} ${author}` });
+  const want = sortKey(b.title).trim(), last = fold(author).split(/\s+/).pop();
+  const within = (a, c) => new RegExp('(^|[^a-z0-9])' + reRe(c) + '([^a-z0-9]|$)').test(a);
+  return hits.find(h => {
+    const t = sortKey(h.title).trim();
+    const title = author ? (t === want || within(t, want) || within(want, t)) : t === want;
+    return title && (!author || !h.author || fold(h.author).includes(last) || t === want);
+  }) || null;
+}
 async function fillIn(b) {
+  if (!isOL(b.id)) {   // first find it in the library; the title, author and year it came with are kept
+    const hit = await lookup(b);
+    if (!hit) { b.tries = (b.tries || 0) + 1; if (b.tries >= 2) b.full = true; return; }
+    const twin = [...finished, ...list].find(x => x !== b && x.id === hit.id);
+    if (twin) { finished = finished.filter(x => x !== b); list = list.filter(x => x !== b); return; }   // already here under its library entry
+    Object.assign(b, { id: hit.id, cover: b.cover || hit.cover, genres: b.genres && b.genres.length ? b.genres : hit.genres, year: b.year ?? hit.year });
+    delete b.tries;
+  }
   let d = null;
   try { d = await fetchDetails(b.id); } catch (e) { if (e.kind !== 'missing') throw e; }
   if (d) Object.assign(b, { title: d.title || b.title, genres: d.genres.length ? d.genres : b.genres || [], cover: b.cover || d.cover, synopsis: d.synopsis || b.synopsis || '' });
@@ -413,14 +441,19 @@ async function backfill() {
   if (backfilling) return;
   backfilling = true;
   let filled = 0;
+  const repaint = () => {   // show what has come in, unless that would interrupt typing or an open sheet
+    const busy = sheets.classList.contains('open') || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
+    if (filled && !busy && ['done', 'list'].includes(document.body.dataset.view)) { top().scroll = viewEl.scrollTop; render(); }
+  };
   try {
     for (const b of [...finished, ...list].filter(x => !x.full)) {
       try { await fillIn(b); persist(); filled++; }
       catch { break; }
+      if (filled % 8 === 0) repaint();
+      await wait(350);   // easy on the library when a long list is filling in
     }
   } finally { backfilling = false; }
-  const busy = sheets.classList.contains('open') || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
-  if (filled && !busy && ['done', 'list'].includes(document.body.dataset.view)) { top().scroll = viewEl.scrollTop; render(); }
+  repaint();
 }
 
 /* ================================================================== covers */
@@ -439,7 +472,7 @@ document.addEventListener('error', e => {
 }, true);
 
 function rowHTML(b, { size = 'm', mark = '' } = {}) {
-  const sub = [b.year, genreText(b)].filter(Boolean).join(' · ');
+  const sub = [yearText(b.year), genreText(b)].filter(Boolean).join(' · ');
   return `<button type="button" class="mrow" data-id="${esc(b.id)}">
     ${cover(b.cover, b.title, size)}
     <span class="tx"><span class="t">${esc(b.title)}</span>${b.author ? `<span class="y">${esc(b.author)}</span>` : ''}${sub ? `<span class="g">${esc(sub)}</span>` : ''}</span>
@@ -570,8 +603,8 @@ function csvOf(header, rows) {
   return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID'], [
-  ...shelfSorted(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), b.id]),
-  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), b.id]),
+  ...shelfSorted(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '']),
+  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '']),
 ]);
 
 async function backup() {
@@ -586,7 +619,8 @@ async function backup() {
 function parseCSV(text) {
   text = text.replace(/^﻿/, '');
   const first = text.split(/\r?\n/, 1)[0] || '';
-  const sep = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ';' : ',';
+  const count = ch => (first.split(ch).length - 1);
+  const sep = count('\t') > count(',') && count('\t') > count(';') ? '\t' : count(';') > count(',') ? ';' : ',';   // comma, semicolon or tab separated
   const rows = []; let row = [], cur = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
@@ -633,35 +667,25 @@ async function restore(fileList) {
   let rows = [];
   for (const f of fileList) { try { rows.push(...readBackup(await f.text())); } catch { /* unreadable */ } }
   if (!rows.length) { toast('That file has no books in it.'); return; }
-  openSheet(`<div class="progress"><p id="rp">Restoring ${plural(rows.length, 'book', 'books')}…</p><p class="s">Keep ${APP} open until this finishes.</p></div>`);
-  const rp = () => $('#rp');
-  let done = 0, addedD = 0, addedL = 0, missed = 0, offline = false;
+  let addedD = 0, addedL = 0, unknown = 0;
   const stamp = Date.now();
-  for (const row of rows) {
-    let id = row.id, hit = null;
-    if (!id && !offline) {   // a hand-made spreadsheet with no IDs: look the title up
-      try { hit = (await searchBooks(row.author ? `${row.title} ${row.author}` : row.title)).items[0] || null; id = hit ? hit.id : null; }
-      catch (e) { if (e.kind === 'offline') offline = true; }
-    }
-    done++;
-    if (!id) { missed++; }
-    else {
-      const old = doneById(id) || listedById(id);
-      const rec = { id, title: (hit && hit.title) || (old && old.title) || row.title, author: row.author || (hit && hit.author) || (old && old.author) || '', year: row.year ?? (hit && hit.year) ?? (old && old.year) ?? null,
-        cover: (hit && hit.cover) || (old && old.cover) || null, genres: (hit && hit.genres.length ? hit.genres : old && old.genres) || [], synopsis: (old && old.synopsis) || '',
-        added: row.at || (old && old.added) || new Date(stamp - done * 1000).toISOString(), full: !!(old && old.full) };
-      finished = finished.filter(b => b.id !== id); list = list.filter(b => b.id !== id);
-      if (row.kind === 'list') { list.push(rec); addedL++; } else { finished.push(rec); addedD++; }
-    }
-    if (rp()) rp().textContent = `Restoring ${done} of ${rows.length}…`;
-    if (done % 20 === 0) persist();
-  }
+  rows.forEach((row, i) => {
+    const probe = { title: row.title, author: row.author };
+    const old = (row.id && (doneById(row.id) || listedById(row.id))) || [...finished, ...list].find(x => sameBook(x, probe)) || null;
+    const id = row.id || (old && old.id) || ('x' + uid());
+    if (!isOL(id)) unknown++;
+    const rec = { id, title: row.title, author: row.author || (old && old.author) || '', year: row.year ?? (old && old.year) ?? null,
+      cover: (old && old.cover) || null, genres: (old && old.genres) || [], synopsis: (old && old.synopsis) || '',
+      added: row.at || (old && old.added) || new Date(stamp - (rows.length - i) * 1000).toISOString(), full: !!(old && old.full && isOL(old.id)) };
+    finished = finished.filter(b => b !== old && b.id !== id); list = list.filter(b => b !== old && b.id !== id);
+    if (row.kind === 'list') { list.push(rec); addedL++; } else { finished.push(rec); addedD++; }
+  });
   persist();
   closeSheet(); render();
   const parts = [];
   if (addedD) parts.push(plural(addedD, 'finished book', 'finished books'));
   if (addedL) parts.push(`${addedL} to read`);
-  toast(`Restored ${parts.join(' and ') || 'nothing'}.` + (missed ? ` ${plural(missed, 'row', 'rows')} couldn’t be matched.` : '') + (offline ? ' Details will fill in when you’re online.' : ''));
+  toast(`Restored ${parts.join(' and ') || 'nothing'}.` + (unknown ? ' Covers and synopses fill in on their own.' : ''));
   backfill();
 }
 $('#pick').addEventListener('change', e => { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) restore(fs); });
@@ -848,7 +872,7 @@ const VIEWS = {
         <div>
           <h1>${esc(b.title)}</h1>
           ${b.author ? `<p class="a">${esc(b.author)}</p>` : ''}
-          <p class="g" id="gline">${esc([b.year, genreText(b)].filter(Boolean).join(' · '))}</p>
+          <p class="g" id="gline">${esc([yearText(b.year), genreText(b)].filter(Boolean).join(' · '))}</p>
           <p class="was">${saved ? `Finished${saved.added ? ' · added ' + esc(niceDay(saved.added)) : ''}` : listed ? `On your reading list${listed.added ? ' since ' + esc(niceDay(listed.added)) : ''}` : ''}</p>
         </div>
       </div>
@@ -860,7 +884,7 @@ const VIEWS = {
       const syn = $('#syn'), gl = $('#gline');
       if (!syn) return;
       syn.innerHTML = b.synopsis ? esc(b.synopsis) : '<span class="quiet-p">No synopsis found for this one.</span>';
-      gl.textContent = [b.year, genreText(b)].filter(Boolean).join(' · ');
+      gl.textContent = [yearText(b.year), genreText(b)].filter(Boolean).join(' · ');
     };
     if (!b.full) {   // the synopsis and exact genres load while the page is open
       fillIn(b).then(() => { persist(); if (top() === page) paint(); }).catch(() => { if (top() === page && $('#syn')) $('#syn').innerHTML = '<span class="quiet-p">Couldn’t load the synopsis. It needs the internet.</span>'; });
@@ -976,7 +1000,7 @@ function groups(items) {
     const g = gs[gs.length - 1];
     if (g && g.year === year) g.items.push(b); else gs.push({ year, items: [b] });
   }
-  return gs.map(g => `<div class="sec"><span class="nm">${g.year ?? 'Year unknown'}</span><span class="ct">${g.items.length}</span></div>
+  return gs.map(g => `<div class="sec"><span class="nm">${g.year == null ? 'Year unknown' : yearText(g.year)}</span><span class="ct">${g.items.length}</span></div>
     <ul class="list">${g.items.map(b => `<li>${rowHTML(b)}</li>`).join('')}</ul>`).join('');
 }
 

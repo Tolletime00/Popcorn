@@ -16,7 +16,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 - **Hosting:** GitHub Pages serves this folder from the `popcorn` repository, next to the Movies and Gym apps.
 - **Book details and covers:** [Open Library](https://openlibrary.org), a project of the Internet Archive. No key or account is needed. Synopses come from Open Library, or from Google Books when Open Library has none.
 - **Your lists:** stored on the phone, inside the Home Screen app. Nothing is sent anywhere else.
-- **Backup:** the three dots on the Finished or Reading list tab, "Back up" saves `Books.csv` (Status, Title, Author, Year, Genre, Date, Open Library ID). Save it to OneDrive.
+- **Backup:** the three dots on the Finished or Reading list tab, "Back up" saves `Books.csv` (Status, Title, Author, Year, Genre, Date, Open Library ID). Save it to OneDrive. "Restore from a backup" also takes a plain list you typed yourself (Title, Author, Year, and a Status column saying Finished or Reading list; commas, semicolons or tabs between them): the books go in at once and the app finds their covers, genres and synopses on its own.
 
 ## Getting it back on a new phone
 
