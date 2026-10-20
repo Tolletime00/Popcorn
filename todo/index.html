@@ -242,7 +242,7 @@ const ICON = {
 
 /* ================================================================== storage
    Everything stays in this phone's storage for the Home Screen app. */
-const K = { tasks: 'todo.tasks', routine: 'todo.routine', sections: 'todo.sections', special: 'todo.special', routineDone: 'todo.routineDone', meta: 'todo.meta', skip: 'todo.skipInstall', seeded: 'todo.seeded' };
+const K = { tasks: 'todo.tasks', routine: 'todo.routine', sections: 'todo.sections', special: 'todo.special', routineDone: 'todo.routineDone', days: 'todo.days', meta: 'todo.meta', skip: 'todo.skipInstall', seeded: 'todo.seeded' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
@@ -252,11 +252,13 @@ let routine = arr(LS.get(K.routine, []));     // weekly items: dow 0 to 6
 let sections = arr(LS.get(K.sections, []));   // the List tab's groups
 let special = arr(LS.get(K.special, []));     // yearly dates
 let routineDone = LS.get(K.routineDone, {}) || {};   // 'routineId|day': true
+let days = LS.get(K.days, {}) || {};                 // day -> { order: ['r:id|day', 't:id', ...], moved: {} }; moved lives under the day the routine item usually falls on: { 'routineId|day': newDay }
+const dayInfo = day => days[day] || (days[day] = {});
 let meta = Object.assign({ unsaved: 0, lastBackup: null }, LS.get(K.meta, {}));
 
 const full = () => toast('Couldn’t save on this phone. Its storage may be full.');
 function persist(changes = 0) {
-  const ok = LS.set(K.tasks, tasks) && LS.set(K.routine, routine) && LS.set(K.sections, sections) && LS.set(K.special, special) && LS.set(K.routineDone, routineDone);
+  const ok = LS.set(K.tasks, tasks) && LS.set(K.routine, routine) && LS.set(K.sections, sections) && LS.set(K.special, special) && LS.set(K.routineDone, routineDone) && LS.set(K.days, days);
   if (!ok) full();
   if (changes) { meta.unsaved = (meta.unsaved || 0) + changes; LS.set(K.meta, meta); }
 }
@@ -449,7 +451,7 @@ function enableDrag(root, onDrop) {
   root.addEventListener('contextmenu', e => { if (e.target.closest('.row[data-drag]')) e.preventDefault(); });
   function lift() {
     const row = press.row, box = row.getBoundingClientRect();
-    drag = { row, id: press.id, dx: press.x - box.left, dy: press.y - box.top, x: press.x, y: press.y };
+    drag = { row, id: press.id, dx: press.x - box.left, dy: press.y - box.top, x: press.x, y: press.y, from: (row.closest('[data-list]') || { dataset: {} }).dataset.list };
     try { row.setPointerCapture(press.id); } catch { /* not a pointer we can hold */ }
     const ghost = document.createElement('div');
     ghost.className = 'ghost'; ghost.style.width = box.width + 'px';
@@ -491,13 +493,13 @@ function enableDrag(root, onDrop) {
   }
   function drop(keep) {
     cancelAnimationFrame(raf);
-    const row = drag.row;
+    const row = drag.row, from = drag.from;
     drag.ghost.remove();
     row.classList.remove('lifting');
     document.body.classList.remove('dragging');
     document.removeEventListener('touchmove', prevent);
     drag = null; dropped = Date.now();
-    if (keep) onDrop(row); else render(true);
+    if (keep) onDrop(row, from); else render(true);
   }
 }
 // Tick a row: it shows as done for a moment (tap again if it was a slip), then slides away for good.
@@ -514,7 +516,7 @@ function tickRow(row, set, finish) {
   }, 1000));
 }
 // After a drop, read the lists back from the page: which list each row sits in and in what order.
-const readLists = root => $$('[data-list]', root).map(sec => ({ key: sec.dataset.list, ids: $$('.row[data-drag]', sec).map(r => r.dataset.id) }));
+const readLists = root => $$('[data-list]', root).map(sec => ({ key: sec.dataset.list, ids: $$('.row[data-drag]', sec).map(r => r.dataset.id), rows: $$('.row[data-drag]', sec).map(r => ({ id: r.dataset.id, kind: r.dataset.kind, day: r.dataset.day || '' })) }));
 
 /* ================================================================== screens */
 const VIEWS = {
@@ -536,18 +538,36 @@ const VIEWS = {
 
   /* ---------------- Calendar: the coming days, each with its yearly dates, routine and items */
   cal(page) {
-    const t = today(), days = Array.from({ length: page.weeks * 7 }, (_, i) => addDays(t, i));
-    const years = [...new Set(days.map(d => +d.slice(0, 4)))];
+    const t = today(), span = Array.from({ length: page.weeks * 7 }, (_, i) => addDays(t, i));
+    const years = [...new Set(span.map(d => +d.slice(0, 4)))];
     const specials = {};   // day -> occurrences
     for (const it of special.slice().sort(byOrder)) for (const y of years) for (const o of occurrences(it, y)) (specials[o.day] = specials[o.day] || []).push({ ...it, text: o.text, note: o.note });
     const dated = tasks.filter(x => x.date && !x.done);
     const overdue = dated.filter(x => x.date < t).sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
+    // A routine item sits on its weekday unless it was moved for that week; it can be ticked off on either.
+    const movedTo = (r, from) => ((days[from] || {}).moved || {})[`${r.id}|${from}`] || null;
+    const routineRows = day => {
+      const here = [];
+      for (const r of routine.slice().sort(byOrder)) if (r.dow === dowOf(day) && !routineDone[`${r.id}|${day}`] && !movedTo(r, day)) here.push({ r, from: day });
+      for (const [from, info] of Object.entries(days)) for (const [k, to] of Object.entries(info.moved || {})) {   // moved here from another day
+        if (to !== day) continue;
+        const [id, origin] = k.split('|'), r = routineById(id);
+        if (r && origin === from && r.dow === dowOf(from) && !routineDone[k]) here.push({ r, from });
+      }
+      return here.map(({ r, from }) => rowHTML(r, { kind: 'routine', day: from, sub: from === day ? '' : `Usually ${DOW[dowOf(from)]}` }));
+    };
+    const arrange = (day, html) => {   // the order this day was put in, if it was; anything new goes last
+      const order = (days[day] || {}).order;
+      if (!order || !order.length) return html;
+      const key = h => { const kind = h.match(/data-kind="(\w+)"/)[1], id = h.match(/data-id="([^"]+)"/)[1], from = (h.match(/data-day="([^"]+)"/) || [])[1]; return kind === 'routine' ? `r:${id}|${from}` : `t:${id}`; };
+      const at = h => { const i = order.indexOf(key(h)); return i < 0 ? 1e9 : i; };
+      return html.map((h, i) => ({ h, i, at: at(h) })).sort((a, b) => a.at - b.at || a.i - b.i).map(x => x.h);
+    };
     const dayHTML = day => {
       const rel = relative(day);
       const items = [
         ...(specials[day] || []).map(s => rowHTML(s, { kind: 'special', day, drag: false })),
-        ...routine.filter(r => r.dow === dowOf(day) && !routineDone[`${r.id}|${day}`]).sort(byOrder).map(r => rowHTML(r, { kind: 'routine', day, drag: false })),
-        ...dated.filter(x => x.date === day).sort(byOrder).map(x => rowHTML(x, { kind: 'task', day })),
+        ...arrange(day, [...routineRows(day), ...dated.filter(x => x.date === day).sort(byOrder).map(x => rowHTML(x, { kind: 'task', day }))]),
       ];
       return `<section class="day" data-list="${day}">
         <div class="sec${rel === 'Today' ? ' today' : ''}"><span class="nm">${esc(fmtLong(day))}</span>${rel ? `<span class="tag">${rel}</span>` : ''}${plusBtn(`data-add="${day}"`, `Add to ${fmtLong(day)}`)}</div>
@@ -557,7 +577,7 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="page cal">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>Calendar</h2><button type="button" class="icon-btn" id="add" aria-label="Add an item">${ICON.plus}</button></header>
       ${overdue.length ? `<section class="day" data-list="overdue"><div class="sec over"><span class="nm">Overdue</span><span class="ct">${overdue.length}</span></div><ul class="rows">${overdue.map(x => rowHTML(x, { kind: 'task', day: x.date, right: fmtDay(x.date) })).join('')}</ul></section>` : ''}
-      ${days.map(dayHTML).join('')}
+      ${span.map(dayHTML).join('')}
       <button type="button" class="quiet more-btn" id="moreDays">Show 4 more weeks</button>
     </section>`;
     const body = $('.cal');
@@ -580,8 +600,20 @@ const VIEWS = {
         else editSpecial(id);
       }
     });
-    enableDrag(body, row => {   // a dropped row takes the day of the list it landed in
-      for (const { key, ids } of readLists(body)) ids.forEach((id, i) => { const x = taskById(id); if (!x) return; if (key !== 'overdue') x.date = key; x.order = i; });
+    enableDrag(body, (row, fromKey) => {   // a dropped row takes the day it landed in; that day, and the one it left, keep their new order
+      const toKey = (row.closest('[data-list]') || { dataset: {} }).dataset.list;
+      for (const { key: day, rows } of readLists(body)) {
+        if (day !== toKey && day !== fromKey) continue;
+        rows.forEach(({ id, kind, day: from }, i) => {
+          if (kind === 'task') { const x = taskById(id); if (x) { if (day !== 'overdue') x.date = day; x.order = i; } }
+          else if (kind === 'routine' && day !== 'overdue') {
+            const info = dayInfo(from), k = `${id}|${from}`;
+            if (day === from) { if (info.moved) { delete info.moved[k]; if (!Object.keys(info.moved).length) delete info.moved; } }
+            else (info.moved || (info.moved = {}))[k] = day;
+          }
+        });
+        if (day !== 'overdue') dayInfo(day).order = rows.map(r => r.kind === 'routine' ? `r:${r.id}|${r.day}` : `t:${r.id}`);
+      }
       persist(1); render(true);
     });
   },
@@ -802,7 +834,7 @@ function sectionSheet(id) {
 }
 
 /* ================================================================== backup and restore */
-const backupText = () => JSON.stringify({ app: APP, version: 1, saved: new Date().toISOString(), tasks, routine, sections, special, routineDone }, null, 1);
+const backupText = () => JSON.stringify({ app: APP, version: 1, saved: new Date().toISOString(), tasks, routine, sections, special, routineDone, days }, null, 1);
 async function backup() {
   const how = await shareFile(BACKUP_NAME, backupText(), 'application/json');
   if (how === 'cancelled') return;
@@ -818,7 +850,7 @@ async function restore(file) {
     <button type="button" class="item danger" id="go"><span class="l">Replace with the backup</span></button>
     <button type="button" class="item" data-close><span class="l">Keep what I have</span></button>`, el => {
     arm($('#go', el), 'replace', () => {
-      tasks = arr(d.tasks); routine = arr(d.routine); sections = arr(d.sections); special = arr(d.special); routineDone = d.routineDone && typeof d.routineDone === 'object' ? d.routineDone : {};
+      tasks = arr(d.tasks); routine = arr(d.routine); sections = arr(d.sections); special = arr(d.special); routineDone = d.routineDone && typeof d.routineDone === 'object' ? d.routineDone : {}; days = d.days && typeof d.days === 'object' ? d.days : {};
       persist(); closeSheet(); render(); toast('Restored.');
     });
   });
@@ -842,6 +874,7 @@ document.addEventListener('focusout', () => setTimeout(() => { if (!/^(INPUT|TEX
 // Old ticks are forgotten after a season, so the phone never fills up.
 { const cutoff = addDays(today(), -120); let changed = false;
   for (const k of Object.keys(routineDone)) if (k.split('|')[1] < cutoff) { delete routineDone[k]; changed = true; }
+  for (const d of Object.keys(days)) if (d < cutoff) { delete days[d]; changed = true; }
   const before = tasks.length; tasks = tasks.filter(x => !x.done); if (tasks.length !== before) changed = true;
   if (changed) persist(); }
 render();
