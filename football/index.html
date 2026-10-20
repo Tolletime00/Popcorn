@@ -96,6 +96,7 @@ body[data-view=install] #tabs,body[data-view=team] #tabs{display:none}
 .primary:disabled{background:var(--fill);color:var(--ink-3);cursor:default}
 .primary:not(:disabled):active{filter:brightness(.94)}
 .dock{padding:12px 20px calc(12px + env(safe-area-inset-bottom));background:var(--bg)}
+.topbtn{padding:4px 20px 12px}
 .page{min-height:100%}
 .sec{display:flex;align-items:baseline;gap:10px;padding:18px 20px 4px}
 .sec .nm{font-size:17px;font-weight:500}
@@ -606,6 +607,7 @@ const VIEWS = {
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Bets</h2>
         <div class="tally right num" aria-label="Season"><span class="pl ${s.pl > 0 ? 'pos' : s.pl < 0 ? 'neg' : ''}">${money(s.pl)}</span><span class="rec">${bets.length ? s.text : 'No bets yet'}</span></div></header>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh scores">${ICON.refresh}Refresh</button></div>
+      <div class="topbtn"><button type="button" class="primary" id="new">New bet</button></div>
       ${rows.length ? `<div class="bets"><div class="head"><span>Wk</span><span>Bet</span><span>Odds</span><span></span><span>P/L</span></div>${rows.map(({ b, r }) => `<button type="button" class="bet ${r.out || 'open'}" data-id="${esc(b.id)}">
           <span class="wk num">Wk ${b.week}</span>
           <span><span class="b num">${esc(b.team)} ${esc(spreadText(b.spread))}</span>${r.note ? `<br><span class="s">${esc(r.note)}</span>` : ''}</span>
@@ -613,7 +615,7 @@ const VIEWS = {
           <span class="out">${r.out || (r.live ? '…' : '')}</span>
           <span class="pl num">${r.out ? esc(money(payout(b, r.out))) : `<span class="tw">to win $100</span>`}</span>
         </button>`).join('')}</div>` : '<p class="note">No bets yet. Each bet is sized to win $100, so the P/L works itself out from the odds: a win is +$100 and a loss is what it cost to make the bet.</p>'}
-      <div class="dock"><button type="button" class="primary" id="new">New bet</button></div>
+      <div style="height:24px"></div>
     </section>`;
     $('#more').addEventListener('click', moreSheet);
     $('.refresh').addEventListener('click', () => refreshData(true));
