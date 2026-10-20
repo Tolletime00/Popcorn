@@ -1,6 +1,6 @@
 # Gym
 
-A personal workout tracker for iPhone. Set up your routines (the exercises you do, one to five sets of each, and a rep target or range like 8 to 12), then work through one and record the weight and reps of every set. Each set has its own lb/kg switch, so kilogram plates and pound dumbbells can share a workout. Two exercises in a row can be paired as a superset (the exercise's three dots, "Superset with …"); a workout then lists them as alternating A and B sets. Last time's numbers are filled in for you, so logging a set is one tap unless something changed.
+A personal workout tracker for iPhone. Set up your routines (the exercises you do, one to five sets of each, and a rep target or range like 8 to 12), then work through one and record the weight and reps of every set. Each set has its own lb / kg / bodyweight switch, so kilogram plates, pound dumbbells and pull-ups can share a workout. An exercise can track time instead of reps (the exercise's three dots, "Track time instead of reps"): a run or a row records minutes and seconds for each set. Two exercises in a row can be paired as a superset (the same menu, "Superset with …"); a workout then lists them as alternating A and B sets. Last time's numbers are filled in for you, so logging a set is one tap unless something changed.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
 
@@ -15,7 +15,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 
 - **Hosting:** GitHub Pages serves this folder from the `popcorn` repository, next to the Movies app.
 - **Routines and workouts:** stored on the phone, inside the Home Screen app. Nothing is sent anywhere.
-- **Backup:** History, the three dots, "Back up" saves `Workouts.csv` (one row per set: date, time, routine, exercise, set, weight, reps, unit) and `Routines.csv` (routine, order, exercise, sets, reps or a range like 8-12, and "with next" in the Superset column for the first exercise of a pair). Save them to OneDrive.
+- **Backup:** History, the three dots, "Back up" saves `Workouts.csv` (one row per set: date, time, routine, exercise, set, weight, reps, unit — "bodyweight" when there was none — and the duration of a timed set as m:ss) and `Routines.csv` (routine, order, exercise, sets, reps or a range like 8-12, "with next" in the Superset column for the first exercise of a pair, and a Type of "weight" or "time"). Save them to OneDrive.
 
 ## Getting it back on a new phone
 
