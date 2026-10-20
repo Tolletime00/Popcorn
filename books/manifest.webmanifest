@@ -1,0 +1,14 @@
+{
+  "name": "Books",
+  "short_name": "Books",
+  "description": "Keep track of the books you have finished and the ones you want to read, and get recommendations.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
