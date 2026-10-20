@@ -140,6 +140,14 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .set.done .num{color:var(--ink)}
 .addset{display:block;padding:8px 0 8px 34px;font-size:15px;color:var(--ink-2)}
 .track .meta{padding:10px 20px 0;font-size:13px;color:var(--ink-3)}
+.pairtag{display:block;font-size:13px;color:var(--acc);font-weight:500;letter-spacing:.01em}
+.ex.pair .pn{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:baseline;column-gap:8px;padding:0 0 6px}
+.ex.pair .pn b{font-weight:500;color:var(--acc)}
+.ex.pair .pn .n{font-size:17px;font-weight:500;line-height:1.2}
+.ex.pair .pn .tg{font-size:14px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums lining-nums}
+.ex.pair .set{border-radius:10px}
+.ex.pair .set[data-tag=B]{background:var(--fill);padding-left:6px;padding-right:6px;margin:0 -6px}
+.ex.pair .i b{font-weight:500;color:var(--acc)}
 
 /* ---------- the sets slider (1 to 5) */
 .slider{position:relative;height:44px;touch-action:none;cursor:pointer;--p:.5}
@@ -160,6 +168,9 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .editor .name input{height:54px;border-radius:16px;font-size:22px;font-weight:300;padding:0 18px}
 .exc{padding:10px 20px}
 .exc+.exc{border-top:1px solid var(--line)}
+.exc.pair-a,.exc.pair-b{box-shadow:inset 3px 0 0 var(--acc)}
+.exc.pair-a .pairtag{padding:2px 0 8px}
+.exc.pair-b{border-top:0;padding-top:0}
 .exc .l1{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:6px}
 .exc .l2{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:10px;padding:8px 0 0 2px}
 .exc .l3{display:grid;grid-template-columns:44px 72px auto 72px minmax(0,1fr);align-items:center;gap:10px;padding:6px 0 6px 2px}
@@ -174,6 +185,8 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .history{min-height:100%}
 .detail .when{padding:0 20px 14px;font-size:15px;color:var(--ink-2)}
 .detail .ex{padding-top:12px}
+.detail .ex.pair-b{border-top:0;padding-top:0}
+.detail .pairtag{padding-bottom:4px}
 .sl{display:grid;grid-template-columns:26px auto auto minmax(0,1fr);align-items:baseline;column-gap:10px;padding:5px 0;font-size:17px;font-variant-numeric:tabular-nums lining-nums}
 .sl .i{font-size:14px;color:var(--ink-3)}
 .sl .u{font-size:13px;color:var(--ink-3)}
@@ -273,6 +286,10 @@ const localDay = iso => { const d = new Date(iso); if (isNaN(d)) return ''; cons
 const localTime = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
 const minutes = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
 const MAX_SETS = 5;
+// A superset: an exercise paired with the one right after it, done in alternating rounds.
+const pairedWithNext = (exs, i) => !!(exs[i] && exs[i + 1] && exs[i].supersetWith && exs[i].supersetWith === exs[i + 1].id);
+const pairedWithPrev = (exs, i) => i > 0 && pairedWithNext(exs, i - 1);
+const tidyPairs = exs => exs.forEach((e, i) => { if (e.supersetWith && !(exs[i + 1] && exs[i + 1].id === e.supersetWith)) e.supersetWith = null; });
 const convert = (w, from, to) => w == null || from === to ? w : Math.round((from === 'kg' ? w * 2.2046226 : w / 2.2046226) * 10) / 10;
 const repsText = e => e.reps ? (e.repsHigh && e.repsHigh > e.reps ? `${e.reps}–${e.repsHigh}` : String(e.reps)) : '–';
 const parseReps = v => { const m = String(v ?? '').trim().match(/^(\d+)\s*(?:[-–to]+\s*(\d+))?$/i); if (!m) return { reps: null, repsHigh: null }; const lo = +m[1], hi = m[2] ? +m[2] : null; return { reps: lo || null, repsHigh: hi && hi > lo ? hi : null }; };
@@ -431,8 +448,8 @@ function workoutsCSV() {
 }
 function routinesCSV() {
   const rows = [];
-  for (const r of sortedRoutines()) r.exercises.forEach((e, i) => rows.push([r.name, i + 1, e.name, e.sets, e.reps ? repsText(e).replace('–', '-') : '']));
-  return csvOf(['Routine', 'Order', 'Exercise', 'Sets', 'Reps'], rows);
+  for (const r of sortedRoutines()) r.exercises.forEach((e, i) => rows.push([r.name, i + 1, e.name, e.sets, e.reps ? repsText(e).replace('–', '-') : '', pairedWithNext(r.exercises, i) ? 'with next' : '']));
+  return csvOf(['Routine', 'Order', 'Exercise', 'Sets', 'Reps', 'Superset'], rows);
 }
 async function backup() {
   const files = [];
@@ -470,7 +487,7 @@ function readBackup(text) {
   const col = names => head.findIndex(h => names.includes(h));
   const body = rows.slice(1);
   const iRo = col(['routine', 'workout', 'name']), iEx = col(['exercise']), iSet = col(['set', 'setnumber']), iW = col(['weight', 'weightlb', 'weightkg']), iRe = col(['reps', 'rep']);
-  const iD = col(['date', 'day']), iT = col(['time']), iU = col(['unit', 'units']), iMin = col(['workoutminutes', 'minutes', 'duration']), iO = col(['order', 'position']), iSets = col(['sets']);
+  const iD = col(['date', 'day']), iT = col(['time']), iU = col(['unit', 'units']), iMin = col(['workoutminutes', 'minutes', 'duration']), iO = col(['order', 'position']), iSets = col(['sets']), iSS = col(['superset', 'supersetwithnext', 'pair']);
   if (iRo < 0 || iEx < 0) return null;
   if (iD >= 0 && iSet >= 0 && iRe >= 0) {   // workouts: one row per set
     const map = new Map();
@@ -496,9 +513,13 @@ function readBackup(text) {
     if (!name || !ex) continue;
     if (!map.has(fold(name))) map.set(fold(name), { name, rows: [] });
     const rr = iRe >= 0 ? parseReps(r[iRe]) : { reps: null, repsHigh: null };
-    map.get(fold(name)).rows.push({ order: iO >= 0 ? num(r[iO]) ?? 1e9 : map.get(fold(name)).rows.length, name: ex, sets: Math.min(MAX_SETS, Math.max(1, Math.round(iSets >= 0 ? num(r[iSets]) ?? 3 : 3))), reps: rr.reps, repsHigh: rr.repsHigh });
+    map.get(fold(name)).rows.push({ order: iO >= 0 ? num(r[iO]) ?? 1e9 : map.get(fold(name)).rows.length, name: ex, sets: Math.min(MAX_SETS, Math.max(1, Math.round(iSets >= 0 ? num(r[iSets]) ?? 3 : 3))), reps: rr.reps, repsHigh: rr.repsHigh, pair: iSS >= 0 && /next|yes|true|1|a/i.test(String(r[iSS] ?? '').trim()) });
   }
-  return { kind: 'routines', items: [...map.values()].map(g => ({ id: 'r' + uid(), name: g.name, created: new Date().toISOString(), updated: new Date().toISOString(), exercises: g.rows.sort((a, b) => a.order - b.order).map(x => ({ id: 'e' + uid(), name: x.name, sets: x.sets, reps: x.reps, repsHigh: x.repsHigh })) })) };
+  return { kind: 'routines', items: [...map.values()].map(g => {
+    const exercises = g.rows.sort((a, b) => a.order - b.order).map(x => ({ id: 'e' + uid(), name: x.name, sets: x.sets, reps: x.reps, repsHigh: x.repsHigh, supersetWith: null, pair: x.pair }));
+    exercises.forEach((e, i) => { if (e.pair && exercises[i + 1] && !(i > 0 && exercises[i - 1].supersetWith)) e.supersetWith = exercises[i + 1].id; delete e.pair; });
+    return { id: 'r' + uid(), name: g.name, created: new Date().toISOString(), updated: new Date().toISOString(), exercises };
+  }) };
 }
 async function restore(fileList) {
   const jobs = [];
@@ -533,6 +554,7 @@ function tidyRoutine(id) {
   const r = routineById(id);
   if (!r) return;
   r.exercises = r.exercises.filter(e => e.name.trim());
+  tidyPairs(r.exercises);
   r.name = r.name.trim();
   if (!r.name && !r.exercises.length) routines = routines.filter(x => x.id !== id);
   else if (!r.name) r.name = 'Untitled routine';
@@ -542,8 +564,10 @@ function tidyRoutine(id) {
 
 /* ================================================================== the workout */
 function startWorkout(r) {
+  const groups = [];
+  for (let i = 0; i < r.exercises.length; i++) { if (pairedWithNext(r.exercises, i)) { groups.push([i, i + 1]); i++; } else groups.push([i]); }
   active = {
-    id: 'w' + uid(), routineId: r.id, name: r.name, started: new Date().toISOString(), unit: settings.unit,
+    id: 'w' + uid(), routineId: r.id, name: r.name, started: new Date().toISOString(), unit: settings.unit, groups,
     exercises: r.exercises.map(e => {
       const last = lastSets(e.name);
       const n = Math.max(1, e.sets || 1);
@@ -560,7 +584,10 @@ function setValues(s, e) {   // what a set counts as, given what was typed and w
   return { weight: w, reps: reps == null ? null : Math.round(reps), unit: s.unit || settings.unit };
 }
 async function finishWorkout() {
-  const done = active.exercises.map(e => ({ name: e.name, sets: e.sets.filter(s => s.done || String(s.reps).trim() !== '').map(s => setValues(s, e)).filter(s => s.reps != null) })).filter(e => e.sets.length);
+  const per = active.exercises.map((e, i) => ({ i, name: e.name, sets: e.sets.filter(s => s.done || String(s.reps).trim() !== '').map(s => setValues(s, e)).filter(s => s.reps != null) }));
+  const kept = per.filter(e => e.sets.length);
+  for (const g of active.groups || []) if (g.length === 2 && kept.some(e => e.i === g[0]) && kept.some(e => e.i === g[1])) kept.find(e => e.i === g[0]).superset = true;
+  const done = kept.map(({ i, ...e }) => e);
   if (!done.length) {
     openSheet(`${head('Nothing recorded yet')}<p class="foot">Tap the circle next to a set once you’ve done it, then finish. Or discard this workout.</p>
       <button type="button" class="item danger" id="discard"><span class="l">Discard workout</span></button>
@@ -638,20 +665,37 @@ const VIEWS = {
 
   /* ---------------- the workout in progress */
   track(page) {
-    const block = (e, ei) => `<div class="ex" data-e="${ei}">
-      <div class="exh"><span class="n">${esc(e.name)}</span><span class="tg">${e.target.sets} × ${repsText(e.target)}</span></div>
-      ${e.sets.map((s, si) => `<div class="set${s.done ? ' done' : ''}" data-s="${si}">
-        <span class="i">${si + 1}</span>
-        <span class="w"><input class="num" type="text" inputmode="decimal" data-k="weight" value="${esc(s.weight)}" placeholder="${lastWeight(s) != null ? esc(fmtNum(lastWeight(s))) : '–'}" aria-label="Weight, set ${si + 1}"><button type="button" class="u" data-unit aria-label="Weight unit for set ${si + 1}, tap to switch">${s.unit || settings.unit}</button></span>
+    if (!active.groups) active.groups = active.exercises.map((_, i) => [i]);   // a workout started by an older version
+    const setRow = (e, ei, s, si, tag) => `<div class="set${s.done ? ' done' : ''}" data-e="${ei}" data-s="${si}"${tag ? ` data-tag="${tag}"` : ''}>
+        <span class="i">${si + 1}${tag ? `<b>${tag}</b>` : ''}</span>
+        <span class="w"><input class="num" type="text" inputmode="decimal" data-k="weight" value="${esc(s.weight)}" placeholder="${lastWeight(s) != null ? esc(fmtNum(lastWeight(s))) : '–'}" aria-label="Weight, ${esc(e.name)} set ${si + 1}"><button type="button" class="u" data-unit aria-label="Weight unit for set ${si + 1}, tap to switch">${s.unit || settings.unit}</button></span>
         <span class="x">×</span>
-        <input class="num" type="text" inputmode="numeric" data-k="reps" value="${esc(s.reps)}" placeholder="${s.last && s.last.reps != null ? esc(s.last.reps) : (e.target.reps ?? '–')}" aria-label="Reps, set ${si + 1}">
-        <button type="button" class="ok" aria-pressed="${s.done}" aria-label="Set ${si + 1} done">${ICON.check}</button>
-      </div>`).join('')}
-      <button type="button" class="addset">+ Add set</button>
-    </div>`;
+        <input class="num" type="text" inputmode="numeric" data-k="reps" value="${esc(s.reps)}" placeholder="${s.last && s.last.reps != null ? esc(s.last.reps) : (e.target.reps ?? '–')}" aria-label="Reps, ${esc(e.name)} set ${si + 1}">
+        <button type="button" class="ok" aria-pressed="${s.done}" aria-label="${esc(e.name)} set ${si + 1} done">${ICON.check}</button>
+      </div>`;
+    const block = (g, gi) => {
+      if (g.length === 1) {
+        const ei = g[0], e = active.exercises[ei];
+        return `<div class="ex" data-g="${gi}">
+          <div class="exh"><span class="n">${esc(e.name)}</span><span class="tg">${e.target.sets} × ${repsText(e.target)}</span></div>
+          ${e.sets.map((s, si) => setRow(e, ei, s, si, '')).join('')}
+          <button type="button" class="addset">+ Add set</button>
+        </div>`;
+      }
+      const [ai, bi] = g, A = active.exercises[ai], B = active.exercises[bi];
+      let rows = '';
+      for (let si = 0; si < Math.max(A.sets.length, B.sets.length); si++) { if (A.sets[si]) rows += setRow(A, ai, A.sets[si], si, 'A'); if (B.sets[si]) rows += setRow(B, bi, B.sets[si], si, 'B'); }
+      return `<div class="ex pair" data-g="${gi}">
+        <div class="exh"><span class="pairtag">Superset</span><span class="tg">alternate A and B</span></div>
+        <div class="pn"><b>A</b><span class="n">${esc(A.name)}</span><span class="tg">${A.target.sets} × ${repsText(A.target)}</span></div>
+        <div class="pn"><b>B</b><span class="n">${esc(B.name)}</span><span class="tg">${B.target.sets} × ${repsText(B.target)}</span></div>
+        ${rows}
+        <button type="button" class="addset">+ Add a round</button>
+      </div>`;
+    };
     viewEl.innerHTML = `<section class="track">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Workout options">${ICON.more}</button><h2>${esc(active.name)}</h2><span class="text-btn" id="elapsed">${minutes(active.started, new Date().toISOString())} min</span></header>
-      <div class="scroll" id="blocks">${active.exercises.map(block).join('')}<p class="meta">${active.exercises.some(e => e.sets.some(s => s.last)) ? 'Grey numbers are what you did last time. Tap the circle to log a set with those numbers, or type new ones first.' : 'Type the weight and reps, then tap the circle when the set is done. Next time, today\u2019s numbers will be waiting for you.'}</p></div>
+      <div class="scroll" id="blocks">${active.groups.map(block).join('')}<p class="meta">${active.exercises.some(e => e.sets.some(s => s.last)) ? 'Grey numbers are what you did last time. Tap the circle to log a set with those numbers, or type new ones first.' : 'Type the weight and reps, then tap the circle when the set is done. Next time, today\u2019s numbers will be waiting for you.'}</p></div>
       <div class="dock"><button type="button" class="primary" id="finish">Finish workout</button></div>
     </section>`;
     const blocks = $('#blocks');
@@ -659,19 +703,19 @@ const VIEWS = {
     blocks.addEventListener('scroll', () => { page.bs = blocks.scrollTop; }, { passive: true });
     blocks.addEventListener('input', e => {
       const inp = e.target.closest('input[data-k]'); if (!inp) return;
-      const row = inp.closest('.set'), ex = active.exercises[+inp.closest('.ex').dataset.e], s = ex.sets[+row.dataset.s];
+      const row = inp.closest('.set'), ex = active.exercises[+row.dataset.e], s = ex.sets[+row.dataset.s];
       s[inp.dataset.k] = inp.value;
       saveActive();
     });
     blocks.addEventListener('click', e => {
       const u = e.target.closest('[data-unit]');
       if (u) {   // this set and the ones after it in the exercise that are not logged yet
-        const row = u.closest('.set'), exEl = u.closest('.ex'), ex = active.exercises[+exEl.dataset.e], si = +row.dataset.s;
+        const row = u.closest('.set'), gEl = u.closest('.ex'), ei = +row.dataset.e, ex = active.exercises[ei], si = +row.dataset.s;
         const next = (ex.sets[si].unit || settings.unit) === 'kg' ? 'lb' : 'kg';
         ex.sets.forEach((s, i) => {
           if (i < si || (i > si && s.done)) return;
           s.unit = next;
-          const r = $(`.set[data-s="${i}"]`, exEl);
+          const r = $(`.set[data-e="${ei}"][data-s="${i}"]`, gEl);
           $('[data-unit]', r).textContent = next;
           $('[data-k=weight]', r).placeholder = lastWeight(s) != null ? fmtNum(lastWeight(s)) : '–';
         });
@@ -680,7 +724,7 @@ const VIEWS = {
       }
       const ok = e.target.closest('.ok');
       if (ok) {
-        const row = ok.closest('.set'), exEl = ok.closest('.ex'), ex = active.exercises[+exEl.dataset.e], s = ex.sets[+row.dataset.s];
+        const row = ok.closest('.set'), ex = active.exercises[+row.dataset.e], s = ex.sets[+row.dataset.s];
         s.done = !s.done;
         if (s.done) {   // fill in last time's numbers where nothing was typed
           const v = setValues(s, ex);
@@ -692,13 +736,15 @@ const VIEWS = {
         return;
       }
       const add = e.target.closest('.addset');
-      if (add) {
-        const exEl = add.closest('.ex'), ex = active.exercises[+exEl.dataset.e];
-        const prev = ex.sets[ex.sets.length - 1];
-        ex.sets.push({ weight: '', reps: '', unit: prev ? prev.unit : settings.unit, done: false, last: prev ? { weight: num(prev.weight) ?? lastWeight(prev), reps: num(prev.reps) ?? (prev.last ? prev.last.reps : null), unit: prev.unit || settings.unit } : null });
+      if (add) {   // one more set for the exercise, or one more round for a superset
+        const gEl = add.closest('.ex'), gi = +gEl.dataset.g, g = active.groups[gi];
+        for (const ei of g) {
+          const ex = active.exercises[ei], prev = ex.sets[ex.sets.length - 1];
+          ex.sets.push({ weight: '', reps: '', unit: prev ? prev.unit : settings.unit, done: false, last: prev ? { weight: num(prev.weight) ?? lastWeight(prev), reps: num(prev.reps) ?? (prev.last ? prev.last.reps : null), unit: prev.unit || settings.unit } : null });
+        }
         saveActive();
         const y = viewEl.scrollTop, sy = blocks.scrollTop;
-        exEl.outerHTML = block(ex, +exEl.dataset.e);
+        gEl.outerHTML = block(g, gi);
         viewEl.scrollTop = y; blocks.scrollTop = sy;
       }
     });
@@ -725,7 +771,8 @@ const VIEWS = {
   edit(page) {
     const r = routineById(page.id);
     if (!r) { back(); return; }
-    const row = (e, i) => `<li class="exc" data-i="${i}">
+    const row = (e, i) => `<li class="exc${pairedWithNext(r.exercises, i) ? ' pair-a' : pairedWithPrev(r.exercises, i) ? ' pair-b' : ''}" data-i="${i}">
+      ${pairedWithNext(r.exercises, i) ? '<span class="pairtag">Superset</span>' : ''}
       <div class="l1"><input class="field" type="text" list="exnames" value="${esc(e.name)}" placeholder="Exercise" autocapitalize="words" autocorrect="off" enterkeyhint="done" data-k="name" aria-label="Exercise ${i + 1}"><button type="button" class="icon-btn" data-opt aria-label="Options for exercise ${i + 1}">${ICON.more}</button></div>
       <div class="l2"><label>Sets</label><div class="slider" data-sets style="--p:${(Math.min(MAX_SETS, Math.max(1, e.sets)) - 1) / (MAX_SETS - 1)}"><div class="rail"><div class="fill"></div></div><div class="ticks">${'<i></i>'.repeat(MAX_SETS)}</div><div class="thumb">${Math.min(MAX_SETS, Math.max(1, e.sets))}</div><input type="range" min="1" max="${MAX_SETS}" step="1" value="${Math.min(MAX_SETS, Math.max(1, e.sets))}" data-k="sets" aria-label="Sets for exercise ${i + 1}"></div></div>
       <div class="l3"><label for="r${i}">Reps</label><input class="num" id="r${i}" type="text" inputmode="numeric" value="${esc(e.reps ?? '')}" placeholder="–" data-k="reps" aria-label="Reps, or the low end of a range"><span class="to">to</span><input class="num" type="text" inputmode="numeric" value="${esc(e.repsHigh ?? '')}" placeholder="–" data-k="repsHigh" aria-label="High end of the rep range, optional"><span class="hint">optional</span></div>
@@ -771,15 +818,27 @@ const VIEWS = {
     const repaint = () => { page.scroll = viewEl.scrollTop; exs.innerHTML = r.exercises.map(row).join(''); viewEl.scrollTop = page.scroll; };
     exs.addEventListener('click', e => {
       const b = e.target.closest('[data-opt]'); if (!b) return;
-      const i = +b.closest('.exc').dataset.i, ex = r.exercises[i];
+      const i = +b.closest('.exc').dataset.i, ex = r.exercises[i], nxt = r.exercises[i + 1];
+      const inPair = pairedWithNext(r.exercises, i) || pairedWithPrev(r.exercises, i);
+      const canPair = !inPair && nxt && !pairedWithNext(r.exercises, i + 1);
       openSheet(`${head(ex.name.trim() || `Exercise ${i + 1}`)}
+        ${inPair ? '<button type="button" class="item" data-split><span class="l">Split the superset</span><span class="s">Back to one exercise at a time</span></button>'
+          : `<button type="button" class="item" data-pair ${canPair ? '' : 'disabled'}><span class="l">Superset with ${nxt && nxt.name.trim() ? esc(nxt.name.trim()) : 'the next exercise'}</span><span class="s">${canPair ? 'Alternate sets of the two' : nxt ? 'That one is already in a superset' : 'Add an exercise below it first'}</span></button>`}
         <button type="button" class="item" data-mv="-1" ${i === 0 ? 'disabled' : ''}><span class="l">Move up</span></button>
         <button type="button" class="item" data-mv="1" ${i === r.exercises.length - 1 ? 'disabled' : ''}><span class="l">Move down</span></button>
         <button type="button" class="item danger" data-rm><span class="l">Remove from routine</span></button>`, el => {
         el.addEventListener('click', ev => {
           const mv = ev.target.closest('[data-mv]');
-          if (mv && !mv.disabled) { const j = i + +mv.dataset.mv; [r.exercises[i], r.exercises[j]] = [r.exercises[j], r.exercises[i]]; saveRoutines(1); repaint(); closeSheet(); }
-          if (ev.target.closest('[data-rm]')) { r.exercises.splice(i, 1); saveRoutines(1); repaint(); closeSheet(); }
+          if (mv && !mv.disabled) {
+            const j = i + +mv.dataset.mv, a = r.exercises[i], c = r.exercises[j];
+            [r.exercises[i], r.exercises[j]] = [c, a];
+            if (a.supersetWith === c.id || c.supersetWith === a.id) { const lo = Math.min(i, j); r.exercises[lo].supersetWith = r.exercises[lo + 1].id; r.exercises[lo + 1].supersetWith = null; }   // a pair moves as a pair
+            tidyPairs(r.exercises); saveRoutines(1); repaint(); closeSheet();
+          }
+          if (ev.target.closest('[data-rm]')) { r.exercises.splice(i, 1); tidyPairs(r.exercises); saveRoutines(1); repaint(); closeSheet(); }
+          const pr = ev.target.closest('[data-pair]');
+          if (pr && !pr.disabled) { ex.supersetWith = nxt.id; saveRoutines(1); repaint(); closeSheet(); }
+          if (ev.target.closest('[data-split]')) { (pairedWithNext(r.exercises, i) ? ex : r.exercises[i - 1]).supersetWith = null; saveRoutines(1); repaint(); closeSheet(); }
         });
       });
     });
@@ -827,7 +886,7 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="detail">
       <header class="bar"><button type="button" class="icon-btn" id="back" aria-label="Back">${ICON.back}</button><h2>${esc(w.name)}</h2><button type="button" class="icon-btn" id="more" aria-label="Workout options">${ICON.more}</button></header>
       <p class="when">${esc(longFmt.format(new Date(w.started)))}, ${esc(timeFmt.format(new Date(w.started)))} · ${minutes(w.started, w.finished || w.started)} min · ${plural(setCount(w), 'set', 'sets')}</p>
-      ${w.exercises.map(e => `<div class="ex"><div class="exh"><span class="n">${esc(e.name)}</span></div>${e.sets.map((s, i) => `<div class="sl"><span class="i">${i + 1}</span><span>${s.weight == null ? '–' : esc(fmtNum(s.weight))} <span class="u">${esc(s.unit || w.unit || settings.unit)}</span></span><span class="x">×</span><span>${esc(s.reps)}</span></div>`).join('')}</div>`).join('')}
+      ${w.exercises.map((e, i) => `<div class="ex${i > 0 && w.exercises[i - 1].superset ? ' pair-b' : ''}">${e.superset ? '<span class="pairtag">Superset</span>' : ''}<div class="exh"><span class="n">${esc(e.name)}</span></div>${e.sets.map((s, i) => `<div class="sl"><span class="i">${i + 1}</span><span>${s.weight == null ? '–' : esc(fmtNum(s.weight))} <span class="u">${esc(s.unit || w.unit || settings.unit)}</span></span><span class="x">×</span><span>${esc(s.reps)}</span></div>`).join('')}</div>`).join('')}
     </section>`;
     $('#back').addEventListener('click', back);
     $('#more').addEventListener('click', () => openSheet(`${head(w.name)}<button type="button" class="item danger" id="del"><span class="l">Delete this workout</span></button>`, el => arm($('#del', el), 'delete', () => { workouts = workouts.filter(x => x.id !== w.id); saveWorkouts(1); closeSheet(true); toast('Workout deleted.'); back(); })));
