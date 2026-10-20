@@ -121,7 +121,14 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 
 /* ---------- the workout itself */
 .track{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
-.track .bar h2{color:var(--ink);font-size:17px;font-weight:500}
+.track .bar{grid-template-columns:minmax(44px,1fr) minmax(0,auto) minmax(44px,1fr);min-height:56px}
+.track .bar .icon-btn{justify-self:start}
+.track .bar h2{color:var(--ink);font-size:17px;font-weight:500;line-height:1.2}
+.track .ttl{display:grid;justify-items:center;min-width:0;text-align:center}
+.track .ttl .sub{font-size:12px;line-height:1.2;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums}
+.track .rest{justify-self:end;display:grid;justify-items:center;padding:0 10px}
+.track .rest .t{font-size:18px;line-height:1.2;font-weight:500;font-variant-numeric:tabular-nums lining-nums}
+.track .rest .l{font-size:11px;line-height:1.2;color:var(--ink-3);letter-spacing:.04em}
 .track .scroll{overflow-y:auto;overscroll-behavior:contain;padding-bottom:12px}
 .ex{padding:14px 20px 6px}
 .ex+.ex{border-top:1px solid var(--line)}
@@ -723,7 +730,7 @@ const VIEWS = {
       </div>`;
     };
     viewEl.innerHTML = `<section class="track">
-      <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Workout options">${ICON.more}</button><h2>${esc(active.name)}</h2><span class="text-btn" id="elapsed">${minutes(active.started, new Date().toISOString())} min</span></header>
+      <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Workout options">${ICON.more}</button><div class="ttl"><h2>${esc(active.name)}</h2><span class="sub" id="elapsed">${minutes(active.started, new Date().toISOString())} min</span></div><div class="rest" id="rest" role="timer" aria-label="Rest since the last set" hidden><span class="t" id="restT">0:00</span><span class="l">rest</span></div></header>
       <div class="scroll" id="blocks">${active.groups.map(block).join('')}<p class="meta">${active.exercises.some(e => e.sets.some(s => s.last)) ? 'Grey numbers are what you did last time. Tap the circle to log a set with those numbers, or type new ones first.' : 'Type the weight and reps, then tap the circle when the set is done. Next time, today\u2019s numbers will be waiting for you.'}</p></div>
       <div class="dock"><button type="button" class="primary" id="finish">Finish workout</button></div>
     </section>`;
@@ -765,7 +772,10 @@ const VIEWS = {
           }
         }
         row.classList.toggle('done', s.done); ok.setAttribute('aria-pressed', String(s.done));
-        saveActive();
+        const key = `${row.dataset.e}:${row.dataset.s}`;   // the rest timer starts from this set; undoing the same tap stops it
+        if (s.done) { active.restFrom = new Date().toISOString(); active.restSet = key; }
+        else if (active.restSet === key) { active.restFrom = null; active.restSet = null; }
+        saveActive(); tick();
         return;
       }
       const add = e.target.closest('.addset');
@@ -782,6 +792,7 @@ const VIEWS = {
         viewEl.scrollTop = y; blocks.scrollTop = sy;
       }
     });
+    tick();
     $('#finish').addEventListener('click', finishWorkout);
     $('#more').addEventListener('click', () => openSheet(`${head(active.name)}
       <button type="button" class="item" data-close><span class="l">Keep going</span><span class="s">Started ${esc(timeFmt.format(new Date(active.started)))}</span></button>
@@ -953,8 +964,18 @@ function moreSheet() {
 }
 
 /* ================================================================== start */
-let ticker = setInterval(() => { const el = $('#elapsed'); if (el && active) el.textContent = `${minutes(active.started, new Date().toISOString())} min`; }, 30000);
-void ticker;
+// Once a second during a workout: the minutes under the title, and the rest timer since the last set was logged.
+function tick() {
+  if (!active) return;
+  const el = $('#elapsed'), rest = $('#rest');
+  if (el) el.textContent = `${minutes(active.started, new Date().toISOString())} min`;
+  if (!rest) return;
+  const from = active.restFrom ? new Date(active.restFrom) : null;
+  rest.hidden = !from || isNaN(from);
+  if (!rest.hidden) $('#restT').textContent = fmtTime(Math.floor(Math.max(0, Date.now() - from) / 1000));
+}
+setInterval(tick, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 document.addEventListener('touchstart', () => {}, { passive: true });   // iPhone Safari shows pressed states only once something listens for touches
 document.addEventListener('focusout', () => setTimeout(() => { if (!/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '')) window.scrollTo(0, 0); }, 60));
 history.replaceState({ d: 0 }, '');
