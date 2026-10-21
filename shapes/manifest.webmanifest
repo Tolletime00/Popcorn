@@ -1,0 +1,14 @@
+{
+  "name": "Shapes",
+  "short_name": "Shapes",
+  "description": "A shape sorter for small kids: drag each shape into the hole that matches it.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

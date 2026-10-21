@@ -1,6 +1,9 @@
 # Movies
 
-This repository also holds six more apps: **Gym** in the `gym` folder, **Books** in the `books` folder, **To-Do** in the `todo` folder, **Football** in the `football` folder, **Budget** in the `budget` folder and **Bounce**, a two-player paddle game for the kids, in the `bounce` folder. Each has its own notes (`gym/README.md`, `books/README.md`, `todo/README.md`, `football/README.md`, `budget/README.md`, `bounce/README.md`), and each one's address is the Movies address with `gym/`, `books/`, `todo/`, `football/`, `budget/` or `bounce/` on the end. Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
+This repository also holds the other apps, each in its own folder with its own notes (`<folder>/README.md`), and each one's address is the Movies address with the folder name on the end (`gym/`, `books/` and so on).
+
+- **Gym** (`gym`), **Books** (`books`), **To-Do** (`todo`), **Football** (`football`) and **Budget** (`budget`). Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
+- Games for the kids, made for an iPad: **Bounce** (`bounce`, two-player paddles), **Air Hockey** (`hockey`), **Memory** (`memory`, pairs), **Bubbles** (`bubbles`, pop them), **Copy Cat** (`copycat`, repeat the colours), **Coloring** (`coloring`), **Numbers** (`numbers`), **Letters** (`letters`) and **Shapes** (`shapes`, a shape sorter).
 
 A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
 

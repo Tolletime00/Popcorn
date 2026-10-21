@@ -1,0 +1,15 @@
+{
+  "name": "Air Hockey",
+  "short_name": "Hockey",
+  "description": "Air hockey for two small kids: the iPad lies flat and each one slides a mallet with a finger.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
