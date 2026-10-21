@@ -287,7 +287,7 @@ function recurring(ym) {
   for (const it of items) {
     if (it.kind === 'income') income += it.amount || 0; else expense += it.amount || 0;
     const a = actualOf(ym, it.id);
-    if (a != null) { entered++; delta += it.kind === 'income' ? (it.amount || 0) - a : a - (it.amount || 0); }   // positive: the month cost more than planned
+    if (a != null) { entered++; delta += it.kind === 'income' ? a - (it.amount || 0) : (it.amount || 0) - a; }   // positive: the month came in under the plan
   }
   return { income, expense, limit: income - expense, delta: round2(delta), entered };
 }
@@ -296,7 +296,7 @@ function month(ym) {
   const r = recurring(ym);
   const cards = ACCOUNTS.map(([id]) => spent(id, ym));
   const cardsTotal = round2(cards.reduce((s, v) => s + v, 0));
-  return { ...r, cards, cardsTotal, balance: round2(r.limit - r.delta - cardsTotal) };
+  return { ...r, cards, cardsTotal, balance: round2(r.limit + r.delta - cardsTotal) };
 }
 const hasData = ym => items.length > 0 || expenses.some(e => e.date.slice(0, 7) === ym) || !!actuals[ym];
 
@@ -406,9 +406,9 @@ const VIEWS = {
       ${monthBar()}
       <div class="lines">
         ${line('Monthly limit', money(m.limit), { sub: items.length ? `Income ${money(m.income)} − recurring ${money(m.expense)}` : 'Set up the Recurring tab first', tab: 'rec' })}
-        ${line('Actual recurring vs estimate', m.entered ? money(m.delta, { paren: false }).replace(/^\$/, '+$') : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · over (+) or under (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? (m.delta > 0 ? 'down' : m.delta < 0 ? 'up' : '') : '', cls: m.entered ? '' : 'dim' })}
+        ${line('Actual recurring vs estimate', m.entered ? money(m.delta, { paren: false }).replace(/^\$/, '+$') : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? '' : 'dim' })}
         ${ACCOUNTS.map(([id, name], i) => line(name, money(m.cards[i]), { tab: 'acct:' + id, cls: m.cards[i] ? '' : 'dim' })).join('')}
-        ${line('Balance', money(m.balance), { cls: 'total', vcls: tone(m.balance), sub: 'Limit, less the line above and the accounts' })}
+        ${line('Balance', money(m.balance), { cls: 'total', vcls: tone(m.balance), sub: 'Limit, plus the line above, less the accounts' })}
       </div>
     </section>`;
     $('#more').addEventListener('click', moreSheet); wireMonthBar();
@@ -418,8 +418,8 @@ const VIEWS = {
   /* ---------------- Recurring: the plan, and this month's actuals against it */
   rec() {
     const r = recurring(state.ym);
-    const rowHTML = it => { const a = actualOf(state.ym, it.id); const d = a == null ? null : (it.kind === 'income' ? a - it.amount : a - it.amount); return `<button type="button" class="row" data-id="${esc(it.id)}">
-      <span><span class="t">${esc(it.name)}</span><span class="s">${it.kind === 'income' ? 'Income' : 'Expense'}${a != null && Math.abs(d) > 0.004 ? ` · ${d > 0 ? '+' : '−'}${money(Math.abs(d))} vs estimate` : ''}</span></span>
+    const rowHTML = it => { const a = actualOf(state.ym, it.id); const d = a == null ? null : (it.kind === 'income' ? a - it.amount : it.amount - a); return `<button type="button" class="row" data-id="${esc(it.id)}">
+      <span><span class="t">${esc(it.name)}</span><span class="s">${it.kind === 'income' ? 'Income' : 'Expense'}${a != null && Math.abs(d) > 0.004 ? ` · <b class="${tone(d)}">${d > 0 ? '+' : '−'}${money(Math.abs(d))}</b> vs estimate` : ''}</span></span>
       <span class="amt num"><span class="a${a == null ? ' open' : ''}">${a == null ? money(it.amount) : money(a)}</span><span class="e">${a == null ? 'estimate' : `est. ${money(it.amount)}`}</span></span>
     </button>`; };
     const group = (sid, name) => { const list = items.filter(x => (x.section || null) === sid).sort(byOrder); if (!list.length && sid === null) return ''; const sum = list.reduce((s, x) => s + (x.kind === 'income' ? 1 : -1) * (x.amount || 0), 0); return `<section>
@@ -429,7 +429,7 @@ const VIEWS = {
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>Recurring</h2><button type="button" class="icon-btn" id="add" aria-label="Add an item">${ICON.plus}</button></header>
       ${monthBar()}
       <div class="summary num"><div class="box"><span class="k">Income</span><span class="v">${esc(money(r.income))}</span></div><div class="box"><span class="k">Expenses</span><span class="v">${esc(money(r.expense))}</span></div><div class="box"><span class="k">Limit</span><span class="v ${tone(r.limit)}">${esc(money(r.limit))}</span></div></div>
-      <p class="help" style="padding:2px 24px 6px;font-size:13px">${r.entered ? `Actual vs estimate for ${esc(ymText(state.ym))}: <b class="${r.delta > 0 ? 'down' : r.delta < 0 ? 'up' : ''}">${esc(money(r.delta, { paren: false }).replace(/^\$/, '+$'))}</b> over the plan` : 'Tap an item to enter what it actually was this month.'}</p>
+      <p class="help" style="padding:2px 24px 6px;font-size:13px">${r.entered ? `Actual vs estimate for ${esc(ymText(state.ym))}: <b class="${tone(r.delta)}">${esc(money(r.delta, { paren: false }).replace(/^\$/, '+$'))}</b> ${r.delta < 0 ? 'over' : 'under'} the plan` : 'Tap an item to enter what it actually was this month.'}</p>
       ${items.length || sections.length ? sections.slice().sort(byOrder).map(s => group(s.id, s.name)).join('') + group(null, 'Other') : '<p class="note">Your paychecks and your bills, with what you expect each to be. The limit is what is left of the income once the bills are paid.</p>'}
       <button type="button" class="quiet addmore" id="newsec">New section</button>
     </section>`;
@@ -451,7 +451,7 @@ const VIEWS = {
     for (const e of list) {
       const m = e.date.slice(0, 7);
       if (m !== ym) { ym = m; body += `<div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div>`; }
-      body += `<button type="button" class="row" data-id="${esc(e.id)}"><span><span class="t">${esc(e.note || 'Expense')}</span><span class="s">${esc(fmtDay(e.date))}</span></span><span class="amt num"><span class="a">${esc(money(e.amount))}</span></span></button>`;
+      body += `<button type="button" class="row" data-id="${esc(e.id)}"><span><span class="t">${esc(e.note || 'Expense')}</span><span class="s">${esc(fmtDay(e.date))}</span></span><span class="amt num"><span class="a${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span>${e.amount < 0 ? '<span class="e">refund</span>' : ''}</span></button>`;
     }
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>${esc(name)}</h2><span></span></header>
@@ -545,18 +545,20 @@ function sectionSheet(id) {
 function expenseSheet(id) {
   const x = id ? expenses.find(e => e.id === id) : null;
   openSheet(`${head(x ? 'Expense' : `Add to ${ACCT[state.acct]}`)}<form class="form" id="f" autocomplete="off">
-      ${moneyHTML('amount', x ? x.amount : null)}
+      ${moneyHTML('amount', x ? Math.abs(x.amount) : null)}
+      ${segHTML('dir', [['charge', 'Charge'], ['refund', 'Refund']], x && x.amount < 0 ? 'refund' : 'charge')}
       <input class="field" type="text" data-k="note" value="${esc(x ? x.note : '')}" placeholder="What was it?" autocapitalize="sentences" enterkeyhint="done" aria-label="Description">
       <input class="field" type="date" data-k="date" value="${x ? x.date : todayISO()}" aria-label="Date">
       <select class="field" data-k="account" aria-label="Account">${ACCOUNTS.map(([k, n]) => `<option value="${k}"${k === (x ? x.account : state.acct) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>
       <button type="submit" class="primary">${x ? 'Save' : 'Add'}</button>
     </form>
     ${x ? '<div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete</span></button></div>' : ''}`, el => {
-    const f = $('#f', el);
+    const f = $('#f', el), getDir = wireSeg(el, 'dir');
     setTimeout(() => { if (!x) $('[data-k=amount]', f).focus(); }, 350);
     f.addEventListener('submit', e => {
       e.preventDefault();
-      const amount = readMoney(el, 'amount'); if (amount == null) { $('[data-k=amount]', f).focus(); return; }
+      let amount = readMoney(el, 'amount'); if (amount == null) { $('[data-k=amount]', f).focus(); return; }
+      if (getDir() === 'refund') amount = -amount;
       const date = $('[data-k=date]', f).value; if (!validDay(date)) { toast('Pick a date.'); return; }
       const rec = { amount, note: $('[data-k=note]', f).value.trim(), date, account: $('[data-k=account]', f).value };
       if (x) Object.assign(x, rec); else expenses.push({ id: 'e' + uid(), ...rec, added: new Date().toISOString() });
@@ -623,7 +625,7 @@ function moreSheet() {
   openSheet(`${head(APP)}
     <button type="button" class="item" id="backup"><span class="l">Back up</span><span class="s">${esc(status)}. Everything in one file for OneDrive.</span></button>
     <label class="item" for="pick"><span class="l">Restore from a backup</span><span class="s">Pick ${BACKUP_NAME} from OneDrive</span></label>
-    <p class="about">Everything in ${APP} stays on this phone. The monthly limit is income less recurring expenses; the balance is the limit, less how far the actuals ran over the plan, less what went on the accounts.</p>`, el => {
+    <p class="about">Everything in ${APP} stays on this phone. The monthly limit is income less recurring expenses; the balance is the limit, plus whatever the actuals came in under the plan (or less what they ran over), less what went on the accounts.</p>`, el => {
     $('#backup', el).addEventListener('click', backup);
   });
 }

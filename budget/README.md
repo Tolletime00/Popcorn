@@ -12,9 +12,9 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 ## The arithmetic
 
 - **Monthly limit** = expected income − expected recurring expenses, from the Recurring tab.
-- **Actual recurring vs estimate** = how much more the month cost than planned, over every item with an actual entered: for an expense, actual − estimate; for income, estimate − actual. Positive (red) means the month ran over the plan, negative (green) means under.
-- **Each account** = the expenses on that account dated in the month.
-- **Balance** = monthly limit − actual recurring vs estimate − the accounts.
+- **Actual recurring vs estimate** = how much the month came in under the plan, over every item with an actual entered: for an expense, estimate − actual; for income, actual − estimate. Positive (green) means under the plan, negative (red) means over.
+- **Each account** = the expenses on that account dated in the month, less any refunds.
+- **Balance** = monthly limit + actual recurring vs estimate − the accounts.
 
 Everything stays on the phone. The three dots back it all up to one file for OneDrive and restore from it.
 
