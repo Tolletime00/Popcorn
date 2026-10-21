@@ -1,0 +1,37 @@
+# Budget
+
+A monthly budget on an iPhone: recurring bills and income, card spending by account, and what each month left over.
+
+- **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, and the balance.
+- **Recurring:** paychecks and bills with what you expect each to be, in sections you name. As the month goes on, tap an item and enter what it actually was.
+- **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. Add an expense as it happens with a date, and it lands in the right month by itself.
+- **Savings:** what each month left over, as a list with its total at the top. Add a month by hand, or tap the current month's line to save the balance the app worked out.
+
+It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
+
+## The arithmetic
+
+- **Monthly limit** = expected income − expected recurring expenses, from the Recurring tab.
+- **Actual recurring vs estimate** = how much more the month cost than planned, over every item with an actual entered: for an expense, actual − estimate; for income, estimate − actual. Positive (red) means the month ran over the plan, negative (green) means under.
+- **Each account** = the expenses on that account dated in the month.
+- **Balance** = monthly limit − actual recurring vs estimate − the accounts.
+
+Everything stays on the phone. The three dots back it all up to one file for OneDrive and restore from it.
+
+## How it is put together
+
+| File | What it is |
+| --- | --- |
+| `index.html` | The whole app: screens, styles and logic in one file |
+| `sw.js` | Lets the app open with no signal |
+| `manifest.webmanifest` | The app's name and icon for the Home Screen |
+| `apple-touch-icon.png`, `icon-512.png` | The piggy bank icon |
+
+## Getting it back on a new phone
+
+Nothing has to be rebuilt. The app is this folder's GitHub Pages address: `https://YOUR-USERNAME.github.io/Popcorn/budget/`.
+
+1. Open the address in Safari on the new iPhone.
+2. Tap Share, then Add to Home Screen. Keep "Open as Web App" on and tap Add.
+3. Open Budget from the Home Screen.
+4. Tap the three dots, choose "Restore from a backup" and pick `Budget backup.json` from OneDrive.

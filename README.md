@@ -1,6 +1,6 @@
 # Movies
 
-This repository also holds four more apps: **Gym** in the `gym` folder, **Books** in the `books` folder, **To-Do** in the `todo` folder and **Football** in the `football` folder. Each has its own notes (`gym/README.md`, `books/README.md`, `todo/README.md`, `football/README.md`), and each one's address is the Movies address with `gym/`, `books/`, `todo/` or `football/` on the end. Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
+This repository also holds five more apps: **Gym** in the `gym` folder, **Books** in the `books` folder, **To-Do** in the `todo` folder, **Football** in the `football` folder and **Budget** in the `budget` folder. Each has its own notes (`gym/README.md`, `books/README.md`, `todo/README.md`, `football/README.md`, `budget/README.md`), and each one's address is the Movies address with `gym/`, `books/`, `todo/`, `football/` or `budget/` on the end. Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
 
 A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
 

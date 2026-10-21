@@ -1,0 +1,14 @@
+{
+  "name": "Budget",
+  "short_name": "Budget",
+  "description": "A monthly budget: recurring bills, card spending by account, and what each month left over.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
