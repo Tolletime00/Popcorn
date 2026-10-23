@@ -3,7 +3,7 @@
 NFL bets, power rankings and matchups, on an iPhone.
 
 - **Bets:** each bet is a week, a team, a spread and odds, sized to win $100. It settles itself from the final score (win, loss or push) and the season's P/L and record sit at the top right.
-- **Power Rankings:** every team in a tier from +7 to −10 (points better or worse than average), dragged into place, with its record and six EPA numbers: offense and defense, EPA per play, per dropback and per rush. Tap a team for its game log, coloured by margin.
+- **Power Rankings:** every team in a tier from +7 to −10 (points better or worse than average), dragged into place, with its record and six EPA numbers: offense and defense, EPA per play, per dropback and per rush. Tap a team for its game log, coloured by margin, with each opponent's rating beside its name.
 - **Matchups:** the coming week's games in order, with the spread, the line your own ratings imply (home rating − away rating + 1.5 for home field), and each offense scored against the other defense: EPA per play, pass and rush. Tap either team for its game log.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
