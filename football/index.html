@@ -173,6 +173,12 @@ body.dragging .tier.spare{display:block}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
 .ghost .row{background:transparent}
 .rk .hint{padding:2px 20px 0;font-size:13px;color:var(--ink-3)}
+.statseg{display:inline-flex;gap:4px;flex:none}
+.statseg button{height:26px;padding:0 10px;border-radius:13px;background:var(--fill);font-size:12px;color:var(--ink-2);white-space:nowrap}
+.statseg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:500}
+.fine{padding:2px 20px 6px;font-size:12px;line-height:1.35;color:var(--ink-3)}
+.team .epa.dv b small,.team .epa.dv span small{display:block;font-size:10px;font-weight:400;color:var(--ink-3);letter-spacing:.02em}
+.team .epa .h.wide{grid-column:2 / 5;text-align:left;font-size:11px;letter-spacing:.04em;color:var(--ink-2);padding-top:6px}
 
 /* ---------- one team: the game log */
 .team .hero{display:flex;align-items:center;gap:14px;padding:4px 20px 12px}
@@ -299,6 +305,9 @@ const sign = (n, d = 1) => n == null ? '–' : (n > 0 ? '+' : n < 0 ? '−' : ''
 const spreadText = n => n == null ? '–' : n === 0 ? 'PK' : sign(n, 1);
 const oddsText = n => n == null ? '–' : (n > 0 ? '+' : '−') + Math.abs(n);
 const epaText = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2).replace(/^0/, '');
+const pct = (v, d = 0) => { if (v == null) return '–'; const a = Math.abs(v).toFixed(d); return (parseFloat(a) === 0 ? '' : v > 0 ? '+' : '−') + a + '%'; };
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+const DVOA_NOTE = 'DVOA-style is our own calculation from the play-by-play, built the way FTN describes DVOA; it is not FTN’s DVOA. Offense: higher is better. Defense: lower is better.';
 const money = n => { const a = Math.abs(n), s = Number.isInteger(Math.round(a * 100) / 100) && Math.abs(a - Math.round(a)) < .005 ? String(Math.round(a)) : a.toFixed(2); return (n > 0 ? '+' : n < 0 ? '−' : '') + '$' + s; };
 const timeFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -331,6 +340,12 @@ function persist(changes = 0) {
 }
 const games = () => data ? data.games : [];
 const epaOf = t => (data && data.epa && data.epa[t]) || null;
+const dvoaOf = t => (data && data.dvoa && data.dvoa[t]) || null;
+// where a team's DVOA-style number sits among the 32: offense and total high is good, defense low is good
+const dvoaRank = (t, key) => { if (!data || !data.dvoa || !data.dvoa[t]) return null; const low = key.startsWith('def'); const vals = Object.values(data.dvoa).map(d => d[key]).filter(v => v != null).sort((a, b) => low ? a - b : b - a); return vals.indexOf(data.dvoa[t][key]) + 1; };
+const statIs = () => meta.stat === 'dvoa' && data && data.dvoa ? 'dvoa' : 'epa';
+const statSeg = () => `<span class="statseg" role="group" aria-label="Which numbers to show"><button type="button" data-stat="epa" aria-pressed="${statIs() === 'epa'}">EPA</button><button type="button" data-stat="dvoa" aria-pressed="${statIs() === 'dvoa'}"${data && data.dvoa ? '' : ' disabled'}>DVOA-style</button></span>`;
+const wireStatSeg = root => { for (const b of $$('.statseg button', root)) b.addEventListener('click', () => { if (meta.stat === b.dataset.stat) return; meta.stat = b.dataset.stat; LS.set(K.meta, meta); render(true); }); };
 
 /* ================================================================== the season */
 // Records from the finals, team by team.
@@ -634,23 +649,29 @@ const VIEWS = {
     const hi = Math.max(...used), lo = Math.min(...used);
     const tiers = [];
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
-    const rowHTML = t => { const e = epaOf(t) || { off: [], def: [] }; return `<li class="row" data-id="${t}" data-drag>
+    const dv = statIs() === 'dvoa';
+    const rowHTML = t => { const e = epaOf(t) || { off: [], def: [] }, d = dvoaOf(t) || {};
+      const off = dv ? [pct(d.off), pct(d.offPass), pct(d.offRush)] : [epaText(e.off[0]), epaText(e.off[1]), epaText(e.off[2])];
+      const def = dv ? [pct(d.def), pct(d.defPass), pct(d.defRush)] : [epaText(e.def[0]), epaText(e.def[1]), epaText(e.def[2])];
+      return `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
-      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b>${epaText(e.off[0])}</b><span>${epaText(e.off[1])}</span><span>${epaText(e.off[2])}</span>
-        <span></span><span class="lab">Def</span><b>${epaText(e.def[0])}</b><span>${epaText(e.def[1])}</span><span>${epaText(e.def[2])}</span></span>
+      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b>${off[0]}</b><span>${off[1]}</span><span>${off[2]}</span>
+        <span></span><span class="lab">Def</span><b>${def[0]}</b><span>${def[1]}</span><span>${def[2]}</span></span>
       <span class="hd" aria-hidden="true">${ICON.grip}</span>
     </li>`; };
     viewEl.innerHTML = `<section class="page rk">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
-      <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · EPA through week ${data.throughWeek}` : ''}</span></div>
+      <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span>${statSeg()}</div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      <div class="cols num"><span>Team · record</span><span></span><span>EPA/play</span><span>Pass</span><span>Rush</span></div>
+      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
+      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA/play'}</span><span>Pass</span><span>Rush</span></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
       </section>`).join('')}
     </section>`;
     const body = $('.rk');
+    wireStatSeg(body);
     $('#more').addEventListener('click', moreSheet);
     $('#refresh').addEventListener('click', () => refreshData(true));
     body.addEventListener('click', e => { const row = e.target.closest('.row'); if (row && !e.target.closest('.hd')) go({ name: 'team', team: row.dataset.id }); });
@@ -686,6 +707,10 @@ const VIEWS = {
       <div class="epa num"><span></span><span class="h">EPA/play</span><span class="h">Dropback</span><span class="h">Rush</span>
         <span class="lab">Offense</span><b>${epaText(e.off[0])}</b><span>${epaText(e.off[1])}</span><span>${epaText(e.off[2])}</span>
         <span class="lab">Defense</span><b>${epaText(e.def[0])}</b><span>${epaText(e.def[1])}</span><span>${epaText(e.def[2])}</span></div>
+      ${dvoaOf(t) ? (() => { const d = dvoaOf(t); const cell = (k, bold) => `<${bold ? 'b' : 'span'}>${pct(d[k], 1)}<small>${ordinal(dvoaRank(t, k))} of 32</small></${bold ? 'b' : 'span'}>`; return `<div class="epa num dv"><span></span><span class="h">DVOA-style</span><span class="h">Pass</span><span class="h">Rush</span>
+        <span class="lab">Offense</span>${cell('off', true)}${cell('offPass')}${cell('offRush')}
+        <span class="lab">Defense</span>${cell('def', true)}${cell('defPass')}${cell('defRush')}</div>
+      <p class="fine">${DVOA_NOTE}</p>`; })() : ''}
       <div class="log">${lines.join('')}</div>
     </section>`;
     $('#back').addEventListener('click', back);
@@ -695,9 +720,12 @@ const VIEWS = {
   mu(page) {
     const week = page.week || upcomingWeek();
     const list = games().filter(g => g.week === week).sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.away.localeCompare(b.away));
-    const tone = v => v == null ? '' : v >= .08 ? 'g2' : v >= .025 ? 'g1' : v <= -.08 ? 'r2' : v <= -.025 ? 'r1' : '';
-    const chip = (k, off, def) => { const v = off != null && def != null ? off + def : null; return `<span class="chip ${tone(v)}"><span class="k">${k}</span><span class="v num">${epaText(v)}</span><span class="base num">${epaText(off)} vs ${epaText(def)}</span></span>`; };
-    const cmp = (o, d) => { const O = epaOf(o) || { off: [] }, D = epaOf(d) || { def: [] }; return `<div class="cmp"><span class="who"><b>${o}</b>offense vs ${d}</span>${chip('EPA', O.off[0], D.def[0])}${chip('Pass', O.off[1], D.def[1])}${chip('Rush', O.off[2], D.def[2])}</div>`; };
+    const dv = statIs() === 'dvoa';
+    const tone = v => v == null ? '' : dv ? (v >= 15 ? 'g2' : v >= 5 ? 'g1' : v <= -15 ? 'r2' : v <= -5 ? 'r1' : '') : (v >= .08 ? 'g2' : v >= .025 ? 'g1' : v <= -.08 ? 'r2' : v <= -.025 ? 'r1' : '');
+    const fmt = dv ? (v => pct(v)) : epaText;
+    // an offense's number plus the defense's: for EPA and for DVOA alike, what this offense can expect against this defense
+    const chip = (k, off, def) => { const v = off != null && def != null ? off + def : null; return `<span class="chip ${tone(v)}"><span class="k">${k}</span><span class="v num">${fmt(v)}</span><span class="base num">${fmt(off)} vs ${fmt(def)}</span></span>`; };
+    const cmp = (o, d) => { if (dv) { const O = dvoaOf(o) || {}, D = dvoaOf(d) || {}; return `<div class="cmp"><span class="who"><b>${o}</b>offense vs ${d}</span>${chip('DVOA', O.off, D.def)}${chip('Pass', O.offPass, D.defPass)}${chip('Rush', O.offRush, D.defRush)}</div>`; } const O = epaOf(o) || { off: [] }, D = epaOf(d) || { def: [] }; return `<div class="cmp"><span class="who"><b>${o}</b>offense vs ${d}</span>${chip('EPA', O.off[0], D.def[0])}${chip('Pass', O.off[1], D.def[1])}${chip('Rush', O.off[2], D.def[2])}</div>`; };
     const card = g => {
       const ra = ratingOf(g.away), rh = ratingOf(g.home);
       const yours = rh - ra + (g.neutral ? 0 : HFA);   // the away team's line by your ratings
@@ -719,9 +747,12 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="page mu">
       <div class="wkbar"><button type="button" class="icon-btn" id="prev" aria-label="Previous week" ${week <= 1 ? 'disabled' : ''}>${ICON.back}</button><h2>Week ${week}</h2><button type="button" class="icon-btn" id="next" aria-label="Next week" ${week >= 18 ? 'disabled' : ''}>${ICON.fwd}</button></div>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh">${ICON.refresh}Refresh</button></div>
+      <div class="status"><span>${dv ? 'DVOA-style, offense vs defense' : 'EPA per play, offense vs defense'}</span>${statSeg()}</div>
+      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
       ${body || `<p class="note">${data ? 'No games that week.' : 'No data yet. Tap Refresh when you have a connection.'}</p>`}
       <div style="height:24px"></div>
     </section>`;
+    wireStatSeg($('.mu'));
     $('#prev').addEventListener('click', () => { page.week = week - 1; page.scroll = 0; render(); });
     $('#next').addEventListener('click', () => { page.week = week + 1; page.scroll = 0; render(); });
     $('.refresh').addEventListener('click', () => refreshData(true));
@@ -802,7 +833,8 @@ function moreSheet() {
     <button type="button" class="item" id="backup"><span class="l">Back up</span><span class="s">${esc(status)}. Bets and rankings, one file for OneDrive.</span></button>
     <label class="item" for="pick"><span class="l">Restore from a backup</span><span class="s">Pick ${BACKUP_NAME} from OneDrive</span></label>
     <button type="button" class="item" id="reset"><span class="l">Reset the power rankings</span><span class="s">Every team back to 0</span></button>
-    <p class="about">Scores, spreads and EPA are rebuilt every half hour from nflverse play-by-play data (the data behind rbsdm.com) and ESPN’s scoreboard. ${esc(stamp())}. Bets and rankings stay on this phone.</p>`, el => {
+    <p class="about">Scores, spreads and EPA are rebuilt every half hour from nflverse play-by-play data (the data behind rbsdm.com) and ESPN’s scoreboard. ${esc(stamp())}. Bets and rankings stay on this phone.</p>
+    <p class="about" style="border-top:0;padding-top:4px">${DVOA_NOTE} On the 2024 and 2025 seasons it landed within about three points of FTN’s published numbers for the typical team.</p>`, el => {
     $('#backup', el).addEventListener('click', backup);
     arm($('#reset', el), 'reset', () => { ranks = []; meta.ranked = false; tidyRanks(); persist(1); closeSheet(); render(true); });
   });

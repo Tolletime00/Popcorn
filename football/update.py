@@ -4,11 +4,15 @@
 Schedule, lines and scores come from nflverse (games.csv), with ESPN's scoreboard laid over it for
 live scores, final status and the latest spreads. EPA per play comes straight from the nflverse
 play-by-play data, the same data rbsdm.com is built on: offense and defense, all plays, dropbacks
-and rushes, regular season only. Team logos are fetched once from ESPN.
+and rushes, regular season only. The same play-by-play feeds a DVOA-style rating (dvoa_calc.py):
+our own calculation built the way FTN describes DVOA, not FTN's numbers. Team logos are fetched
+once from ESPN.
 
 Runs on GitHub Actions on a schedule; writes only when something changed. Standard library only.
 """
 import csv, gzip, io, json, os, sys, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dvoa_calc
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -126,13 +130,17 @@ def espn_overlay(games):
 
 
 def epa():
-    """EPA per play for every team, offense and defense, from the play-by-play."""
+    """EPA per play for every team, offense and defense, from the play-by-play; the DVOA-style plays too."""
     raw = gzip.decompress(fetch(PBP_URL, timeout=300)).decode('utf-8')
     acc = {t: {'off': [[0.0, 0], [0.0, 0], [0.0, 0]], 'def': [[0.0, 0], [0.0, 0], [0.0, 0]]} for t in TEAMS}
     through = 0
+    plays = []
     for r in csv.DictReader(io.StringIO(raw)):
         if r.get('season_type') != 'REG':
             continue
+        p = dvoa_calc.play_from_row(r)
+        if p:
+            plays.append(p)
         e = num(r.get('epa'))
         if e is None:
             continue
@@ -152,7 +160,7 @@ def epa():
     for t, s in acc.items():
         out[t] = {side: [round(x[0] / x[1], 3) if x[1] else None for x in s[side]] for side in ('off', 'def')}
         out[t]['plays'] = s['off'][0][1]
-    return out, through
+    return out, through, dvoa_calc.compute(plays, TEAMS)
 
 
 def logos():
@@ -172,13 +180,15 @@ def main():
     games = schedule()
     print(f'{len(games)} games for {SEASON}')
     print(f'espn matched {espn_overlay(games)} games')
-    teams, through = epa()
-    print(f'epa through week {through}')
+    teams, through, dvoa = epa()
+    print(f'epa and dvoa-style through week {through}')
     logos()
     body = {
         'app': 'Football', 'season': SEASON, 'throughWeek': through,
         'games': sorted(games.values(), key=lambda g: (g['week'], g['kickoff'], g['away'])),
         'epa': teams,
+        'dvoa': dvoa,
+        'dvoaNote': "DVOA-style: our own calculation from nflverse play-by-play, built the way FTN describes DVOA. Not FTN's numbers.",
     }
     old = None
     if os.path.exists(DATA):
