@@ -52,13 +52,17 @@ body[data-state=start] .score{display:none}
 #home{position:absolute;top:calc(var(--u) * 12);right:calc(var(--u) * 12);width:calc(var(--u) * 60);height:calc(var(--u) * 60);min-width:44px;min-height:44px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center}
 #home svg{width:46%;height:46%;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ov{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.6);text-align:center;padding:calc(var(--u) * 30)}
-.ov .box{display:grid;gap:calc(var(--u) * 22);justify-items:center;width:100%}
+.ov .box{display:grid;gap:calc(var(--u) * 16);justify-items:center;width:100%}
 .ov h1{margin:0;font-size:calc(var(--u) * 80);font-weight:500;line-height:1;letter-spacing:.02em}
 .ov h1.blue{color:var(--blue)}.ov h1.orange{color:var(--orange)}
 .ov p{margin:0;font-size:calc(var(--u) * 26);color:var(--dim)}
 .ov .pic{width:calc(var(--u) * 260);height:calc(var(--u) * 110)}
 .ov .big{font-size:calc(var(--u) * 36);font-weight:500;color:#000;background:#fff;height:calc(var(--u) * 96);min-height:56px;padding:0 calc(var(--u) * 70);border-radius:calc(var(--u) * 48);display:grid;place-items:center;min-width:calc(var(--u) * 320)}
 .ov .big:active{transform:scale(.97)}
+.pills{display:flex;gap:calc(var(--u) * 8)}
+.pills button{font-size:calc(var(--u) * 22);height:calc(var(--u) * 52);min-height:40px;padding:0 calc(var(--u) * 26);border-radius:calc(var(--u) * 26);background:rgba(255,255,255,.1);color:var(--dim)}
+.pills button[aria-pressed=true]{background:#fff;color:#000;font-weight:500}
+.ov .box .pic{margin-bottom:calc(var(--u) * -6)}
 .ov .small{font-size:calc(var(--u) * 19);color:var(--dim)}
 .ov .small button{text-decoration:underline;text-underline-offset:3px;color:var(--ink);min-height:44px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -78,6 +82,7 @@ body[data-state=start] .score{display:none}
 (() => {
 'use strict';
 const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* fine */ } },
@@ -91,7 +96,9 @@ const MALLET = 45, PUCK = 25, MOUTH = H * 0.38 / 2;   // radii, and half the goa
 const MAX_SPEED = 1700, FRICTION = 0.22, WALL_E = 0.85, HIT_E = 0.92;
 const TARGET = 5;
 const NAMES = ['Blue', 'Orange'], COLORS = ['#2f7cf6', '#ff7a1a'], DARK = ['#1c56b8', '#c45a0d'];
-const settings = { sound: LS.get('hockey.sound', true) };
+const settings = { sound: LS.get('hockey.sound', true), players: LS.get('hockey.players', 2) === 1 ? 1 : 2, level: LS.get('hockey.level', 'easy') };
+if (!['easy', 'medium', 'hard'].includes(settings.level)) settings.level = 'easy';
+const solo = () => settings.players === 1;
 
 const game = { state: 'start', t: 0, score: [0, 0], serveT: 0, serveX: W / 2, winner: null, overAt: 0, pausedAt: 0 };
 const puck = { x: W / 2, y: H / 2, vx: 0, vy: 0, visible: true };
@@ -108,6 +115,7 @@ function newGame() {
   game.score = [0, 0]; game.winner = null; game.t = 0; confetti.length = 0;
   for (const [i, m] of mallets.entries()) { [m.x, m.y] = [i === 0 ? W * 0.2 : W * 0.8, H / 2]; m.x0 = m.x; m.y0 = m.y; m.vx = m.vy = 0; m.target = null; }
   placePuck(W / 2); puck.visible = true; game.serveT = 0;
+  ai.nextThink = 0; ai.mode = 'defend'; ai.desired = { x: W * 0.8, y: H / 2 };
   game.state = 'play'; show();
 }
 function goal(side) {   // side: who scored
@@ -150,10 +158,79 @@ function tick(h, k) {   // k: how far through the frame, for the mallets' motion
   if (puck.x + PUCK < 0) goal(1);
   else if (puck.x - PUCK > W) goal(0);
 }
+/* ================================================================== the computer player: Orange, when one person plays */
+// speed: how fast it moves · react: seconds between decisions · err: how far off its aim is · attack: how keen it is
+// to go for the puck on its own half · lazy: how often it just drifts · home: where it waits, as a fraction of the table
+const LEVELS = {
+  easy: { speed: 450, react: 0.55, err: 200, attack: 0.5, lazy: 0.3, home: 0.93, track: 0.3, predict: 0 },
+  medium: { speed: 600, react: 0.4, err: 100, attack: 0.6, lazy: 0.15, home: 0.92, track: 0.4, predict: 0.2 },
+  hard: { speed: 820, react: 0.3, err: 60, attack: 0.95, lazy: 0, home: 0.86, track: 0.8, predict: 0.7 },
+};
+const ai = { nextThink: 0, desired: { x: W * 0.8, y: H / 2 }, mode: 'defend', aimY: H / 2 };
+// where the puck will cross x, folding off the side walls
+function crossY(x) {
+  if (Math.abs(puck.vx) < 1) return puck.y;
+  let y = puck.y + puck.vy * (x - puck.x) / puck.vx;
+  const span = H - 2 * PUCK; y = ((y - PUCK) % (2 * span) + 2 * span) % (2 * span);
+  return PUCK + (y > span ? 2 * span - y : y);
+}
+function think(L) {
+  const m = mallets[1], onMyHalf = puck.x > W / 2 - PUCK, incoming = puck.vx > 120;   // a puck on the centre line is within reach
+  if (Math.random() < L.lazy) { ai.mode = 'drift'; ai.desired = { x: m.x + rand(-40, 40), y: m.y + rand(-40, 40) }; return; }
+  const homeX = W * L.home;
+  if (!onMyHalf && !incoming) {   // the puck is away: wait in front of the goal, following it
+    ai.mode = 'defend';
+    const want = puck.vx > 0 ? puck.y + (crossY(homeX) - puck.y) * L.predict : puck.y;
+    ai.desired = { x: homeX, y: H / 2 + (want - H / 2) * L.track + rand(-L.err, L.err) * 0.5 }; return;
+  }
+  if (incoming && puck.x < W * 0.55 && Math.hypot(puck.vx, puck.vy) > 500) {   // a fast one coming: get in its way
+    ai.mode = 'block';
+    const want = puck.y + (crossY(homeX) - puck.y) * L.predict;
+    ai.desired = { x: homeX, y: H / 2 + (want - H / 2) * L.track + rand(-L.err, L.err) }; return;
+  }
+  const gap = MALLET + PUCK + 14;
+  if (puck.x > W - gap - 30 && Math.hypot(puck.vx, puck.vy) < 250) {   // stuck against its own back wall: sweep it toward the side wall, away from the mouth
+    ai.mode = 'clear';
+    const toCentre = puck.y < H / 2 ? 1 : -1;   // the mouth is in the middle; stand between the puck and it, then push outward
+    const stand = { x: puck.x - 30, y: puck.y + toCentre * gap * 0.9 };
+    const near = Math.hypot(m.x - stand.x, m.y - stand.y) < 60;
+    ai.desired = near ? { x: puck.x + 10, y: puck.y - toCentre * 80 } : stand;
+    return;
+  }
+  const behindMe = puck.x > m.x + 10;   // the puck is between the mallet and its own goal
+  if (behindMe) {   // get round it without shoving it home: sidestep first, then slip behind it
+    ai.mode = 'around';
+    const dy = puck.y - m.y;
+    if (Math.abs(dy) < gap && m.x < puck.x + gap) ai.desired = { x: m.x, y: puck.y + (puck.y < H / 2 ? gap : -gap) };
+    else ai.desired = { x: Math.min(W - MALLET, puck.x + gap), y: puck.y };
+    return;
+  }
+  if (Math.random() > L.attack) { ai.mode = 'defend'; ai.desired = { x: homeX, y: H / 2 + (puck.y - H / 2) * L.track }; return; }
+  // attack: line up behind the puck relative to the other goal, then drive through it
+  ai.mode = 'attack';
+  ai.aimY = H / 2 + rand(-L.err, L.err) * 0.5;   // where it aims, give or take
+  let dx = 0 - puck.x, dy = ai.aimY - puck.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+  const behind = { x: puck.x - dx * (MALLET + PUCK + 6), y: puck.y - dy * (MALLET + PUCK + 6) };
+  const near = Math.hypot(m.x - behind.x, m.y - behind.y) < 70;
+  ai.desired = near ? { x: puck.x + dx * 80, y: puck.y + dy * 80 } : behind;
+}
+function runAI(dt) {
+  if (!solo() || game.state !== 'play') return;
+  const L = LEVELS[settings.level], m = mallets[1];
+  if (game.t >= ai.nextThink) { think(L); ai.nextThink = game.t + L.react * rand(0.7, 1.3); }
+  if (!puck.visible && ai.mode !== 'defend') { ai.mode = 'defend'; ai.desired = { x: W * L.home, y: H / 2 }; }
+  const [tx, ty] = clampMallet(1, ai.desired.x, ai.desired.y);
+  const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy), step = L.speed * dt;
+  if (d < 1) { m.target = { x: m.x, y: m.y }; return; }
+  const k = Math.min(1, step / d);
+  m.target = { x: m.x + dx * k, y: m.y + dy * k };
+}
+
 function frame(t) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, last ? (t - last) / 1000 : 0); last = t;
   if (game.state === 'play' && dt > 0) {
+    runAI(dt);
     for (const m of mallets) {
       m.x0 = m.x; m.y0 = m.y;
       if (m.target) { [m.x, m.y] = clampMallet(mallets.indexOf(m), m.target.x, m.target.y); m.vx = clamp((m.x - m.x0) / dt, -3000, 3000); m.vy = clamp((m.y - m.y0) / dt, -3000, 3000); m.target = null; }
@@ -242,6 +319,7 @@ app.addEventListener('pointerdown', e => {
   if (game.state !== 'play') { anyPress(); return; }
   const [x, y] = toTable(e.clientX, e.clientY);
   const side = x < W / 2 ? 0 : 1, m = mallets[side];
+  if (side === 1 && solo()) return;                          // the iPad has that one
   if (m.pointer != null && grabs.has(m.pointer)) return;   // that mallet already has a finger on it
   const near = Math.hypot(x - m.x, y - m.y) < MALLET * 1.8;
   grabs.set(e.pointerId, { side, dx: near ? m.x - x : 0, dy: near ? m.y - y : 0 });
@@ -292,11 +370,15 @@ function show() {
     ov.innerHTML = `<div class="ov"><div class="box">
       <h1>Air Hockey</h1>
       ${PIC}
-      <p>Blue on the left, Orange on the right. Slide your mallet with a finger.</p>
+      <div class="pills" role="group" aria-label="Players"><button type="button" data-players="1" aria-pressed="${solo()}">1 player</button><button type="button" data-players="2" aria-pressed="${!solo()}">2 players</button></div>
+      <div class="pills" id="levels" role="group" aria-label="How good the iPad is" ${solo() ? '' : 'hidden'}>${['easy', 'medium', 'hard'].map(l => `<button type="button" data-level="${l}" aria-pressed="${settings.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div>
+      <p id="howto">${solo() ? 'You are Blue. Slide your mallet with a finger; the iPad plays Orange.' : 'Blue on the left, Orange on the right. Slide your mallet with a finger.'}</p>
       <button type="button" class="big" id="play">Play</button>
       <p class="small">First to ${TARGET} wins · Sound <button type="button" id="snd">${settings.sound ? 'on' : 'off'}</button>${isIOS() && !standalone() ? '<br>For the whole screen, tap Share, then Add to Home Screen.' : ''}</p>
     </div></div>`;
     $('#play').addEventListener('click', () => { unlockAudio(); newGame(); });
+    for (const b of $$('[data-players]')) b.addEventListener('click', () => { settings.players = +b.dataset.players; LS.set('hockey.players', settings.players); for (const x of $$('[data-players]')) x.setAttribute('aria-pressed', String(x === b)); $('#levels').hidden = !solo(); $('#howto').textContent = solo() ? 'You are Blue. Slide your mallet with a finger; the iPad plays Orange.' : 'Blue on the left, Orange on the right. Slide your mallet with a finger.'; });
+    for (const b of $$('[data-level]')) b.addEventListener('click', () => { settings.level = b.dataset.level; LS.set('hockey.level', settings.level); for (const x of $$('[data-level]')) x.setAttribute('aria-pressed', String(x === b)); });
     $('#snd').addEventListener('click', e => { settings.sound = !settings.sound; LS.set('hockey.sound', settings.sound); e.target.textContent = settings.sound ? 'on' : 'off'; unlockAudio(); if (settings.sound) tone(620, .06); });
   } else if (game.state === 'pause') {
     ov.innerHTML = `<div class="ov"><div class="box"><h1>Paused</h1><p>${game.score[0]} – ${game.score[1]}</p><button type="button" class="big" id="go">Continue</button><p class="small"><button type="button" id="quit">Start over</button></p></div></div>`;
@@ -304,7 +386,7 @@ function show() {
     $('#quit').addEventListener('click', () => { game.state = 'start'; game.score = [0, 0]; placePuck(W / 2); puck.visible = true; show(); });
   } else if (game.state === 'over') {
     const w = game.winner;
-    ov.innerHTML = `<div class="ov"><div class="box"><h1 class="${w === 0 ? 'blue' : 'orange'}">${NAMES[w]} wins!</h1><p>${game.score[0]} – ${game.score[1]}</p><button type="button" class="big" id="again">Play again</button></div></div>`;
+    ov.innerHTML = `<div class="ov"><div class="box"><h1 class="${w === 0 ? 'blue' : 'orange'}">${solo() ? (w === 0 ? 'You win!' : 'The iPad wins!') : NAMES[w] + ' wins!'}</h1><p>${game.score[0]} – ${game.score[1]}</p><button type="button" class="big" id="again">Play again</button></div></div>`;
     $('#again').addEventListener('click', () => { unlockAudio(); newGame(); });
   }
 }
@@ -331,7 +413,7 @@ new ResizeObserver(fit).observe(app);
 window.addEventListener('orientationchange', () => setTimeout(fit, 60));
 fit(); show(); requestAnimationFrame(frame);
 if (document.fonts && document.fonts.load) document.fonts.load('500 48px Jost').catch(() => {});
-window.__hockey = { game, puck, mallets, settings, grabs, newGame, goal, placePuck, toTable, isPortrait: () => portrait, W, H, MALLET, PUCK, MOUTH };   // for the tests
+window.__hockey = { game, puck, mallets, settings, grabs, newGame, goal, placePuck, toTable, ai, LEVELS, solo, isPortrait: () => portrait, W, H, MALLET, PUCK, MOUTH };   // for the tests
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
