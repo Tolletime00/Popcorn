@@ -650,21 +650,35 @@ const VIEWS = {
     const tiers = [];
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
     const dv = statIs() === 'dvoa';
+    // every column is coloured by rank: the best of the 32 is green, the worst red, the middle the plain text colour
+    const valueOf = (t, side, k) => { if (dv) { const d = dvoaOf(t); return d ? d[side === 'off' ? ['off', 'offPass', 'offRush'][k] : ['def', 'defPass', 'defRush'][k]] : null; } const e = epaOf(t); return e ? e[side][k] : null; };
+    const ladders = {};
+    for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) {
+      const vals = ranks.map(r => valueOf(r.team, side, k)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);   // best first
+      ladders[side + k] = vals;
+    }
+    const shade = (t, side, k) => {
+      const v = valueOf(t, side, k), L = ladders[side + k]; if (v == null || L.length < 2) return '';
+      const pos = L.indexOf(v) / (L.length - 1);   // 0 = best, 1 = worst
+      const p = Math.round(Math.abs(pos - .5) * 2 * 100);   // how far from the middle, as a percentage
+      return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`;
+    };
+    const epa100 = v => v == null ? '–' : sign(Math.round(v * 100), 0);
     const rowHTML = t => { const e = epaOf(t) || { off: [], def: [] }, d = dvoaOf(t) || {};
-      const off = dv ? [pct(d.off), pct(d.offPass), pct(d.offRush)] : [epaText(e.off[0]), epaText(e.off[1]), epaText(e.off[2])];
-      const def = dv ? [pct(d.def), pct(d.defPass), pct(d.defRush)] : [epaText(e.def[0]), epaText(e.def[1]), epaText(e.def[2])];
+      const off = dv ? [pct(d.off), pct(d.offPass), pct(d.offRush)] : [epa100(e.off[0]), epa100(e.off[1]), epa100(e.off[2])];
+      const def = dv ? [pct(d.def), pct(d.defPass), pct(d.defRush)] : [epa100(e.def[0]), epa100(e.def[1]), epa100(e.def[2])];
       return `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
-      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b>${off[0]}</b><span>${off[1]}</span><span>${off[2]}</span>
-        <span></span><span class="lab">Def</span><b>${def[0]}</b><span>${def[1]}</span><span>${def[2]}</span></span>
+      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b${shade(t, 'off', 0)}>${off[0]}</b><span${shade(t, 'off', 1)}>${off[1]}</span><span${shade(t, 'off', 2)}>${off[2]}</span>
+        <span></span><span class="lab">Def</span><b${shade(t, 'def', 0)}>${def[0]}</b><span${shade(t, 'def', 1)}>${def[1]}</span><span${shade(t, 'def', 2)}>${def[2]}</span></span>
       <span class="hd" aria-hidden="true">${ICON.grip}</span>
     </li>`; };
     viewEl.innerHTML = `<section class="page rk">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
       <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span>${statSeg()}</div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
-      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA/play'}</span><span>Pass</span><span>Rush</span></div>
+      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : '<p class="fine">EPA per 100 plays: offense, then defense (lower is better). Green is the best of the 32, red the worst.</p>'}
+      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
