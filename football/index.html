@@ -665,9 +665,9 @@ const VIEWS = {
       return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`;
     };
     const rankText = (t, side, k) => { const r = rankOf(t, side, k); return r == null ? '–' : String(r); };
-    const rowHTML = t => { const d = dvoaOf(t) || {};
-      const off = dv ? [pct(d.off), pct(d.offPass), pct(d.offRush)] : [rankText(t, 'off', 0), rankText(t, 'off', 1), rankText(t, 'off', 2)];
-      const def = dv ? [pct(d.def), pct(d.defPass), pct(d.defRush)] : [rankText(t, 'def', 0), rankText(t, 'def', 1), rankText(t, 'def', 2)];
+    const rowHTML = t => {   // ranks of the 32 for whichever stat the switch shows
+      const off = [rankText(t, 'off', 0), rankText(t, 'off', 1), rankText(t, 'off', 2)];
+      const def = [rankText(t, 'def', 0), rankText(t, 'def', 1), rankText(t, 'def', 2)];
       return `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
       <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b${shade(t, 'off', 0)}>${off[0]}</b><span${shade(t, 'off', 1)}>${off[1]}</span><span${shade(t, 'off', 2)}>${off[2]}</span>
@@ -678,7 +678,7 @@ const VIEWS = {
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
       <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span>${statSeg()}</div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : '<p class="fine">Where each team ranks of the 32 by EPA per play: offense, then defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).</p>'}
+      <p class="fine">Where each team ranks of the 32 by ${dv ? 'the DVOA-style rating' : 'EPA per play'}: offense, then defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).${dv ? ' ' + DVOA_NOTE : ''}</p>
       <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
