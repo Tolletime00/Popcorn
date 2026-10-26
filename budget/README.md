@@ -4,7 +4,9 @@ A monthly budget on an iPhone: recurring bills and income, card spending by acco
 
 - **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, and the balance.
 - **Recurring:** paychecks and bills with what you expect each to be, in sections you name. As the month goes on, tap an item and enter what it actually was.
-- **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. Expenses sit under their month and, within it, under a grey line for each day; the + on a day adds an expense to that day (the Add expense button at the top still asks for the date). Drag an expense by the lines at its end, or hold it, to move it to another day or another spot in its day. Tap one to change or delete it.
+- **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. A Pending section comes first, for charges the card still shows as pending; then each month, and under it a grey line for every day (this month shows every day so far, with something on it or not; older months only the days that had something). The + on a day adds an expense to that day, the + on Pending adds a pending one, and the Add expense button at the top asks for the date. Drag an expense by the lines at its end, or hold it, to move it to another day, into or out of Pending, or to another spot in its day. Tap one to change it, switch it between Pending and Posted, or delete it. A pending charge counts into its month like any other.
+
+Amounts are typed with the decimal already in place: 4230 is $42.30. The screens show whole dollars (42.30 shows as $42), but the cents are kept and go into every total.
 - **Savings:** what each month left over, as a list with its total at the top. Add a month by hand, or tap the current month's line to save the balance the app worked out.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
@@ -13,7 +15,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 
 - **Monthly limit** = expected income − expected recurring expenses, from the Recurring tab.
 - **Actual recurring vs estimate** = how much the month came in under the plan, over every item with an actual entered: for an expense, estimate − actual; for income, actual − estimate. Positive (green) means under the plan, negative (red) means over.
-- **Each account** = the expenses on that account dated in the month, less any refunds.
+- **Each account** = the expenses on that account dated in the month, pending ones included, less any refunds.
 - **Balance** = monthly limit + actual recurring vs estimate − the accounts.
 
 Everything stays on the phone. The three dots back it all up to one file for OneDrive and restore from it.

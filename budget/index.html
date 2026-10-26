@@ -236,12 +236,11 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const arr = v => Array.isArray(v) ? v : [];
 const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return Number.isFinite(n) ? n : null; };
 const round2 = n => Math.round(n * 100) / 100;
-// Money the way a statement shows it: $1,234.56, and (4,665) for a loss.
-const money = (n, { cents = 'auto', paren = true } = {}) => {
+// Money the way the spreadsheet shows it: whole dollars, $1,234, and (4,665) for a loss. The cents stay in the numbers; the screens just round them.
+const money = (n, { paren = true } = {}) => {
   if (n == null) return '–';
-  const a = Math.abs(n), whole = cents === 'never' || (cents === 'auto' && Math.abs(a - Math.round(a)) < .005);
-  const s = '$' + (whole ? Math.round(a).toLocaleString('en-US') : a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-  return n < -0.004 ? (paren ? `(${s})` : '−' + s) : s;
+  const r = Math.round(Math.abs(n)), s = '$' + r.toLocaleString('en-US');
+  return r && n < 0 ? (paren ? `(${s})` : '−' + s) : s;
 };
 const pad = n => String(n).padStart(2, '0');
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -275,7 +274,7 @@ const LS = {
 let items = arr(LS.get(K.items, []));         // recurring: { id, name, amount, kind: 'expense'|'income', section, order }
 let sections = arr(LS.get(K.sections, []));   // { id, name, order }
 let actuals = LS.get(K.actuals, {}) || {};    // actuals[ym][itemId] = amount
-let expenses = arr(LS.get(K.expenses, []));   // { id, account, date, amount, note }
+let expenses = arr(LS.get(K.expenses, []));   // { id, account, date, amount, note, order, pending }
 let savings = arr(LS.get(K.savings, []));     // { ym, amount }
 let meta = Object.assign({ unsaved: 0, lastBackup: null }, LS.get(K.meta, {}));
 function persist(changes = 0) {
@@ -283,6 +282,12 @@ function persist(changes = 0) {
   if (!ok) toast('Couldn’t save on this phone. Its storage may be full.');
   if (changes) { meta.unsaved = (meta.unsaved || 0) + changes; LS.set(K.meta, meta); }
 }
+function tidy() {   // "(pending)" written at the end of a note, the spreadsheet's way, becomes the pending status
+  let n = 0;
+  for (const e of expenses) { const m = /^(.*?)\s*\(pending\)\s*$/i.exec(e.note || ''); if (m) { e.note = m[1]; e.pending = true; n++; } }
+  return n;
+}
+if (tidy()) persist(1);
 const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
 const itemById = id => items.find(x => x.id === id);
 const sectionById = id => sections.find(x => x.id === id);
@@ -372,8 +377,16 @@ function wireSeg(el, name, onChange) {
   seg.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; for (const x of $$('button', seg)) x.setAttribute('aria-pressed', String(x === b)); if (onChange) onChange(b.dataset.v); });
   return () => ($('button[aria-pressed=true]', seg) || { dataset: {} }).dataset.v;
 }
-// An amount box: a decimal keypad, a dollar sign, and an optional plus-or-minus beside it.
-const moneyHTML = (k, value, { signed = false, placeholder = '0' } = {}) => `<div class="money">${signed ? `<span class="seg mini" data-seg="${k}sign"><button type="button" data-v="-" aria-pressed="${value != null && value < 0}" aria-label="Minus">−</button><button type="button" data-v="+" aria-pressed="${!(value != null && value < 0)}" aria-label="Plus">+</button></span>` : ''}<span class="cur">$</span><input class="field num" type="text" inputmode="decimal" data-k="${k}" value="${value == null ? '' : String(Math.abs(value))}" placeholder="${placeholder}" aria-label="Amount"></div>`;
+// An amount box: a number pad, a dollar sign, and an optional plus-or-minus beside it. The decimal point is already there:
+// digits come in from the cents end, so typing 4230 makes 42.30, the way a card reader takes an amount.
+const centsText = c => c ? (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+const moneyHTML = (k, value, { signed = false, placeholder = '0.00' } = {}) => `<div class="money">${signed ? `<span class="seg mini" data-seg="${k}sign"><button type="button" data-v="-" aria-pressed="${value != null && value < 0}" aria-label="Minus">−</button><button type="button" data-v="+" aria-pressed="${!(value != null && value < 0)}" aria-label="Plus">+</button></span>` : ''}<span class="cur">$</span><input class="field num cents" type="text" inputmode="numeric" data-k="${k}" value="${value == null ? '' : centsText(Math.round(Math.abs(value) * 100))}" placeholder="${placeholder}" aria-label="Amount"></div>`;
+sheets.addEventListener('input', e => {
+  const i = e.target; if (!i.classList || !i.classList.contains('cents')) return;
+  const digits = i.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  i.value = centsText(+digits || 0);
+  try { i.setSelectionRange(i.value.length, i.value.length); } catch { /* not every browser lets us */ }
+});
 const readMoney = (el, k, signed) => { const n = num($(`[data-k="${k}"]`, el).value); if (n == null) return null; const neg = signed && ($(`[data-seg="${k}sign"] button[aria-pressed=true]`, el) || { dataset: {} }).dataset.v === '-'; return round2(Math.abs(n)) * (neg ? -1 : 1); };
 async function shareFile(name, text, type) {
   const file = new File([text], name, { type });
@@ -528,28 +541,32 @@ const VIEWS = {
     });
   },
 
-  /* ---------------- Accounts: every expense, by card, grouped by month */
+  /* ---------------- Accounts: every expense, by card: the pending ones first, then every day under its month */
   acct() {
-    const id = state.acct, name = ACCT[id];
-    const list = expenses.filter(e => e.account === id).sort((a, b) => b.date.localeCompare(a.date) || (a.order ?? 0) - (b.order ?? 0) || (b.added || '').localeCompare(a.added || ''));
-    const rowHTML = e => `<li class="row" data-id="${esc(e.id)}" data-drag><span><span class="t">${esc(e.note || 'Expense')}</span>${e.amount < 0 ? '<span class="s">refund</span>' : ''}</span><span class="amt num"><span class="a${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span></span><span class="hd" aria-hidden="true">${ICON.grip}</span></li>`;
-    let body = '', ym = '', day = '';
-    const close = () => { if (day) { body += '</ul></section>'; day = ''; } };
-    for (const e of list) {
-      const m = e.date.slice(0, 7);
-      if (m !== ym) { close(); ym = m; body += `<div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div>`; }
-      if (e.date !== day) {   // a line across for each day, with the day's name and a plus of its own
-        close(); day = e.date;
-        body += `<section class="dayl" data-list="${day}"><div class="sec day"><span class="nm">${esc(fmtWday(day))}</span><button type="button" class="plus" data-add="${day}" aria-label="Add an expense on ${esc(fmtWday(day))}">${ICON.plus}</button></div><ul class="rows">`;
-      }
-      body += rowHTML(e);
+    const id = state.acct, name = ACCT[id], today = todayISO();
+    const ord = (a, b) => (a.order ?? 0) - (b.order ?? 0) || (b.added || '').localeCompare(a.added || '');
+    const mine = expenses.filter(e => e.account === id), pending = mine.filter(e => e.pending).sort(ord), byDay = {};
+    for (const e of mine) if (!e.pending) (byDay[e.date] = byDay[e.date] || []).push(e);
+    for (const l of Object.values(byDay)) l.sort(ord);
+    const days = new Set(Object.keys(byDay));
+    for (let d = +today.slice(8, 10); d >= 1; d--) days.add(today.slice(0, 8) + pad(d));   // this month so far, every day, with something on it or not
+    const rowHTML = e => {
+      const s = [e.pending ? fmtDay(e.date) : '', e.amount < 0 ? 'refund' : ''].filter(Boolean).join(' · ');
+      return `<li class="row" data-id="${esc(e.id)}" data-drag><span><span class="t">${esc(e.note || 'Expense')}</span>${s ? `<span class="s">${esc(s)}</span>` : ''}</span><span class="amt num"><span class="a${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span></span><span class="hd" aria-hidden="true">${ICON.grip}</span></li>`;
+    };
+    // a line across for each day (and for Pending), with its name and a plus of its own
+    const dayHTML = (key, label, rows, aria) => `<section class="dayl" data-list="${key}"><div class="sec day"><span class="nm">${esc(label)}</span><button type="button" class="plus" data-add="${key}" aria-label="${esc(aria)}">${ICON.plus}</button></div><ul class="rows">${rows.map(rowHTML).join('')}</ul></section>`;
+    let body = dayHTML('pending', 'Pending', pending, 'Add a pending charge'), ym = '';
+    for (const day of [...days].sort().reverse()) {
+      const m = day.slice(0, 7);
+      if (m !== ym) { ym = m; body += `<div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div>`; }
+      body += dayHTML(day, fmtWday(day), byDay[day] || [], `Add an expense on ${fmtWday(day)}`);
     }
-    close();
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>${esc(name)}</h2><span></span></header>
       <div class="chips" role="tablist">${ACCOUNTS.map(([k, n]) => `<button type="button" role="tab" data-acct="${k}" aria-pressed="${k === id}">${esc(n)}</button>`).join('')}</div>
       <div class="topbtn"><button type="button" class="primary" id="add">Add expense</button></div>
-      ${body || `<p class="note">Nothing on ${esc(name)} yet. Add each expense as it happens; the Month tab adds them up by month.</p>`}
+      ${body}
     </section>`;
     $('#more').addEventListener('click', moreSheet);
     $('.chips').addEventListener('click', e => { const b = e.target.closest('[data-acct]'); if (b) { state.acct = b.dataset.acct; state.scroll.acct = 0; render(); } });
@@ -557,14 +574,17 @@ const VIEWS = {
     $('#add').addEventListener('click', () => expenseSheet(null));
     const body2 = $('.page');
     body2.addEventListener('click', e => {
-      const add = e.target.closest('[data-add]'); if (add) return expenseSheet(null, add.dataset.add);
+      const add = e.target.closest('[data-add]'); if (add) return add.dataset.add === 'pending' ? expenseSheet(null, null, true) : expenseSheet(null, add.dataset.add);
       const row = e.target.closest('.row'); if (row && !e.target.closest('.hd')) expenseSheet(row.dataset.id);
     });
-    enableDrag(body2, (row, fromKey) => {   // a dropped expense takes the day it landed in; both days keep their new order
+    enableDrag(body2, (row, fromKey) => {   // a dropped expense takes the day it landed in (or goes pending); both lists keep their new order
       const toKey = (row.closest('[data-list]') || { dataset: {} }).dataset.list; if (!toKey) { render(true); return; }
       for (const sec of $$('[data-list]', body2)) {
-        const dayKey = sec.dataset.list; if (dayKey !== toKey && dayKey !== fromKey) continue;
-        $$('.row', sec).forEach((r, i) => { const x = expenses.find(e => e.id === r.dataset.id); if (x) { x.date = dayKey; x.order = i; } });
+        const key = sec.dataset.list; if (key !== toKey && key !== fromKey) continue;
+        $$('.row', sec).forEach((r, i) => {
+          const x = expenses.find(e => e.id === r.dataset.id); if (!x) return;
+          x.order = i; if (key === 'pending') x.pending = true; else { delete x.pending; x.date = key; }
+        });
       }
       persist(1); render(true);
     });
@@ -646,7 +666,7 @@ function sectionSheet(id) {
   });
 }
 
-function expenseSheet(id, onDay) {   // onDay: a date to start with, from a day's own plus
+function expenseSheet(id, onDay, asPending) {   // onDay: a date to start with, from a day's own plus; asPending: from the Pending plus
   const x = id ? expenses.find(e => e.id === id) : null;
   openSheet(`${head(x ? 'Expense' : `Add to ${ACCT[state.acct]}`)}<form class="form" id="f" autocomplete="off">
       ${moneyHTML('amount', x ? Math.abs(x.amount) : null)}
@@ -654,18 +674,20 @@ function expenseSheet(id, onDay) {   // onDay: a date to start with, from a day'
       <input class="field" type="text" data-k="note" value="${esc(x ? x.note : '')}" placeholder="What was it?" autocapitalize="sentences" enterkeyhint="done" aria-label="Description">
       <input class="field" type="date" data-k="date" value="${x ? x.date : onDay || todayISO()}" aria-label="Date">
       <select class="field" data-k="account" aria-label="Account">${ACCOUNTS.map(([k, n]) => `<option value="${k}"${k === (x ? x.account : state.acct) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      ${segHTML('status', [['posted', 'Posted'], ['pending', 'Pending']], (x ? x.pending : asPending) ? 'pending' : 'posted')}
       <button type="submit" class="primary">${x ? 'Save' : 'Add'}</button>
     </form>
     ${x ? '<div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete</span></button></div>' : ''}`, el => {
-    const f = $('#f', el), getDir = wireSeg(el, 'dir');
+    const f = $('#f', el), getDir = wireSeg(el, 'dir'), getStatus = wireSeg(el, 'status');
     setTimeout(() => { if (!x) $('[data-k=amount]', f).focus(); }, 350);
     f.addEventListener('submit', e => {
       e.preventDefault();
       let amount = readMoney(el, 'amount'); if (amount == null) { $('[data-k=amount]', f).focus(); return; }
       if (getDir() === 'refund') amount = -amount;
       const date = $('[data-k=date]', f).value; if (!validDay(date)) { toast('Pick a date.'); return; }
-      const rec = { amount, note: $('[data-k=note]', f).value.trim(), date, account: $('[data-k=account]', f).value };
-      if (x) Object.assign(x, rec); else expenses.push({ id: 'e' + uid(), ...rec, added: new Date().toISOString() });
+      const rec = { amount, note: $('[data-k=note]', f).value.trim(), date, account: $('[data-k=account]', f).value }, pending = getStatus() === 'pending';
+      if (x) { Object.assign(x, rec); if (pending) x.pending = true; else delete x.pending; }
+      else expenses.push({ id: 'e' + uid(), ...rec, ...(pending ? { pending: true } : {}), added: new Date().toISOString() });
       state.acct = rec.account;
       persist(1); closeSheet(); render(true);
     });
@@ -701,7 +723,7 @@ function savingsSheet(ym, liveYm) {
 }
 
 /* ================================================================== backup and the three dots */
-const backupText = () => JSON.stringify({ app: APP, version: 1, saved: new Date().toISOString(), items, sections, actuals, expenses, savings }, null, 1);
+const backupText = () => JSON.stringify({ app: APP, version: 2, saved: new Date().toISOString(), items, sections, actuals, expenses, savings }, null, 1);
 async function backup() {
   const how = await shareFile(BACKUP_NAME, backupText(), 'application/json');
   if (how === 'cancelled') return;
@@ -718,7 +740,7 @@ async function restore(file) {
     <button type="button" class="item" data-close><span class="l">Keep what I have</span></button>`, el => {
     arm($('#go', el), 'replace', () => {
       items = arr(d.items); sections = arr(d.sections); actuals = d.actuals && typeof d.actuals === 'object' ? d.actuals : {}; expenses = arr(d.expenses); savings = arr(d.savings);
-      persist(); closeSheet(); render(); toast('Restored.');
+      tidy(); persist(); closeSheet(); render(); toast('Restored.');
     });
   });
 }
