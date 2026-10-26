@@ -149,7 +149,9 @@ body[data-view=install] #tabs,body[data-view=team] #tabs{display:none}
 select.field{font-weight:500;letter-spacing:.04em}
 
 /* ---------- Power Rankings */
-.cols{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) 30px repeat(3,44px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.stick{position:sticky;top:0;z-index:3;background:var(--bg)}
+.stick .status{padding-top:6px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 30px repeat(3,44px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
 .cols span{overflow:hidden;white-space:nowrap}
 .cols span:first-child{text-align:left}
 .tier .sec{padding-top:14px}
@@ -167,7 +169,8 @@ body.dragging .tier.spare{display:block}
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .row .rc{font-size:13px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.row .tx b{font-weight:600;color:var(--ink)}
+.row .tx .v{font-size:18px;font-weight:500}
+.row .tx b{font-size:20px;font-weight:600;color:var(--ink)}
 .row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
@@ -215,12 +218,16 @@ body.dragging .tier.spare{display:block}
 .card .line{display:flex;justify-content:center;align-items:baseline;gap:14px;margin:10px 0 4px;font-size:14px;color:var(--ink-2)}
 .card .line b{font-size:17px;font-weight:600;color:var(--ink)}
 .card .line .lb{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin-right:4px}
-.card .cmp{display:grid;grid-template-columns:70px repeat(3,1fr);gap:6px;align-items:stretch;margin-top:8px}
+.card .cmp{display:grid;grid-template-columns:54px repeat(3,1fr);gap:6px;align-items:stretch;margin-top:8px}
 .card .cmp .who{display:grid;align-content:center;font-size:12px;color:var(--ink-2);line-height:1.2}
 .card .cmp .who b{font-size:15px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .chip{display:grid;justify-items:center;gap:1px;padding:6px 2px 5px;border-radius:10px;background:var(--bg)}
 .chip .k{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.chip .v{font-size:16px;font-weight:600}
+.chip .v{font-size:15px;font-weight:600;white-space:nowrap}
+.chip .v i{font-style:normal;font-size:17px}
+.chip .v small{font-size:10px;font-weight:400;color:var(--ink-3);margin:0 3px}
+.card .rest{margin:8px 0 0;text-align:center;font-size:12px;line-height:1.35;color:var(--ink-2)}
+.card .rest b{font-weight:500;color:var(--ink)}
 .chip .base{font-size:10px;color:var(--ink-3)}
 .chip.g1{background:var(--g1)}.chip.g2{background:var(--g2)}.chip.r1{background:var(--r1)}.chip.r2{background:var(--r2)}
 .card .final{font-size:13px;color:var(--ink-2);text-align:center;margin-top:8px}
@@ -344,6 +351,40 @@ const dvoaOf = t => (data && data.dvoa && data.dvoa[t]) || null;
 // where a team's DVOA-style number sits among the 32: offense and total high is good, defense low is good
 const dvoaRank = (t, key) => { if (!data || !data.dvoa || !data.dvoa[t]) return null; const low = key.startsWith('def'); const vals = Object.values(data.dvoa).map(d => d[key]).filter(v => v != null).sort((a, b) => low ? a - b : b - a); return vals.indexOf(data.dvoa[t][key]) + 1; };
 const statIs = () => meta.stat === 'dvoa' && data && data.dvoa ? 'dvoa' : 'epa';
+// The six stats as ranks of the 32, by whichever the switch shows: offense high-is-good, defense low-is-good, 1 = best.
+const STAT_KEYS = { off: ['off', 'offPass', 'offRush'], def: ['def', 'defPass', 'defRush'] };
+const statValue = (t, side, k) => { if (statIs() === 'dvoa') { const d = dvoaOf(t); return d ? d[STAT_KEYS[side][k]] : null; } const e = epaOf(t); return e && e[side] ? e[side][k] : null; };
+function rankTable() {
+  const L = {};
+  for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) L[side + k] = ABBRS.map(t => statValue(t, side, k)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);
+  const n = Math.max(2, ...Object.values(L).map(x => x.length));
+  const rankOf = (t, side, k) => { const v = statValue(t, side, k); return v == null ? null : L[side + k].indexOf(v) + 1; };
+  // green for the best, red for the worst, the plain text colour in the middle
+  const style = r => { if (r == null) return ''; const pos = (r - 1) / (n - 1), p = Math.round(Math.abs(pos - .5) * 200); return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`; };
+  return { rankOf, style, n };
+}
+// Who is better rested for a game, and why: from the days of rest in the schedule and each team's previous game.
+function restNote(g) {
+  const all = games();
+  const info = (t, rest) => {
+    const prev = all.filter(x => (x.away === t || x.home === t) && x.kickoff < g.kickoff).sort((a, b) => b.kickoff.localeCompare(a.kickoff))[0];
+    let why = '';
+    if (rest != null && rest >= 13) why = 'off a bye';
+    else if (prev && prev.abroad) why = `played in ${prev.abroad}`;
+    else if (prev) { const d = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }).format(new Date(prev.kickoff)); if (d === 'Thu') why = 'played Thursday'; else if (d === 'Mon') why = 'played Monday'; else if (d === 'Sat') why = 'played Saturday'; else if (d === 'Fri') why = 'played Friday'; }
+    return { t, rest, why };
+  };
+  const a = info(g.away, g.awayRest), h = info(g.home, g.homeRest);
+  if (a.rest == null || h.rest == null) return '';
+  const days = x => `${x.rest} day${x.rest === 1 ? '' : 's'}`;
+  if (a.rest === h.rest) {
+    if (a.rest <= 5) return `Short week for both · ${days(a)}`;
+    if (a.why || h.why) return `Even rest · ${[a.why && `${a.t} ${a.why}`, h.why && `${h.t} ${h.why}`].filter(Boolean).join(', ')}`;
+    return '';
+  }
+  const adv = a.rest > h.rest ? a : h, oth = adv === a ? h : a;
+  return `<b>Rest edge ${adv.t}</b> · ${days(adv)}${adv.why ? ` (${adv.why})` : ''} vs ${oth.t} ${days(oth)}${oth.why ? ` (${oth.why})` : ''}`;
+}
 const statSeg = () => `<span class="statseg" role="group" aria-label="Which numbers to show"><button type="button" data-stat="epa" aria-pressed="${statIs() === 'epa'}">EPA</button><button type="button" data-stat="dvoa" aria-pressed="${statIs() === 'dvoa'}"${data && data.dvoa ? '' : ' disabled'}>DVOA-style</button></span>`;
 const wireStatSeg = root => { for (const b of $$('.statseg button', root)) b.addEventListener('click', () => { if (meta.stat === b.dataset.stat) return; meta.stat = b.dataset.stat; LS.set(K.meta, meta); render(true); }); };
 
@@ -649,37 +690,21 @@ const VIEWS = {
     const hi = Math.max(...used), lo = Math.min(...used);
     const tiers = [];
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
-    const dv = statIs() === 'dvoa';
-    // every column is coloured by rank: the best of the 32 is green, the worst red, the middle the plain text colour
-    const valueOf = (t, side, k) => { if (dv) { const d = dvoaOf(t); return d ? d[side === 'off' ? ['off', 'offPass', 'offRush'][k] : ['def', 'defPass', 'defRush'][k]] : null; } const e = epaOf(t); return e ? e[side][k] : null; };
-    const ladders = {};
-    for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) {
-      const vals = ranks.map(r => valueOf(r.team, side, k)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);   // best first
-      ladders[side + k] = vals;
-    }
-    const rankOf = (t, side, k) => { const v = valueOf(t, side, k), L = ladders[side + k]; return v == null ? null : L.indexOf(v) + 1; };   // 1 = best of the 32
-    const shade = (t, side, k) => {
-      const r = rankOf(t, side, k), L = ladders[side + k]; if (r == null || L.length < 2) return '';
-      const pos = (r - 1) / (L.length - 1);   // 0 = best, 1 = worst
-      const p = Math.round(Math.abs(pos - .5) * 2 * 100);   // how far from the middle, as a percentage
-      return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`;
-    };
-    const rankText = (t, side, k) => { const r = rankOf(t, side, k); return r == null ? '–' : String(r); };
-    const rowHTML = t => {   // ranks of the 32 for whichever stat the switch shows
-      const off = [rankText(t, 'off', 0), rankText(t, 'off', 1), rankText(t, 'off', 2)];
-      const def = [rankText(t, 'def', 0), rankText(t, 'def', 1), rankText(t, 'def', 2)];
-      return `<li class="row" data-id="${t}" data-drag>
+    const dv = statIs() === 'dvoa', R = rankTable();
+    const cell = (t, side, k, bold) => { const r = R.rankOf(t, side, k); return `<${bold ? 'b' : 'span class="v"'}${R.style(r)}>${r == null ? '–' : r}</${bold ? 'b' : 'span'}>`; };
+    const rowHTML = t => `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
-      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span><b${shade(t, 'off', 0)}>${off[0]}</b><span${shade(t, 'off', 1)}>${off[1]}</span><span${shade(t, 'off', 2)}>${off[2]}</span>
-        <span></span><span class="lab">Def</span><b${shade(t, 'def', 0)}>${def[0]}</b><span${shade(t, 'def', 1)}>${def[1]}</span><span${shade(t, 'def', 2)}>${def[2]}</span></span>
+      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span>${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
+        <span></span><span class="lab">Def</span>${cell(t, 'def', 0, true)}${cell(t, 'def', 1)}${cell(t, 'def', 2)}</span>
       <span class="hd" aria-hidden="true">${ICON.grip}</span>
-    </li>`; };
+    </li>`;
     viewEl.innerHTML = `<section class="page rk">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
-      <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span>${statSeg()}</div>
+      <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span></div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
       <p class="fine">Where each team ranks of the 32 by ${dv ? 'the DVOA-style rating' : 'EPA per play'}: offense, then defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).${dv ? ' ' + DVOA_NOTE : ''}</p>
-      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div>
+      <div class="stick"><div class="status"><span>Ranks of 32 by</span>${statSeg()}</div>
+      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
@@ -735,24 +760,24 @@ const VIEWS = {
   mu(page) {
     const week = page.week || upcomingWeek();
     const list = games().filter(g => g.week === week).sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.away.localeCompare(b.away));
-    const dv = statIs() === 'dvoa';
-    const tone = v => v == null ? '' : dv ? (v >= 15 ? 'g2' : v >= 5 ? 'g1' : v <= -15 ? 'r2' : v <= -5 ? 'r1' : '') : (v >= .08 ? 'g2' : v >= .025 ? 'g1' : v <= -.08 ? 'r2' : v <= -.025 ? 'r1' : '');
-    const fmt = dv ? (v => pct(v)) : epaText;
-    // an offense's number plus the defense's: for EPA and for DVOA alike, what this offense can expect against this defense
-    const chip = (k, off, def) => { const v = off != null && def != null ? off + def : null; return `<span class="chip ${tone(v)}"><span class="k">${k}</span><span class="v num">${fmt(v)}</span><span class="base num">${fmt(off)} vs ${fmt(def)}</span></span>`; };
-    const cmp = (o, d) => { if (dv) { const O = dvoaOf(o) || {}, D = dvoaOf(d) || {}; return `<div class="cmp"><span class="who"><b>${o}</b>offense vs ${d}</span>${chip('DVOA', O.off, D.def)}${chip('Pass', O.offPass, D.defPass)}${chip('Rush', O.offRush, D.defRush)}</div>`; } const O = epaOf(o) || { off: [] }, D = epaOf(d) || { def: [] }; return `<div class="cmp"><span class="who"><b>${o}</b>offense vs ${d}</span>${chip('EPA', O.off[0], D.def[0])}${chip('Pass', O.off[1], D.def[1])}${chip('Rush', O.off[2], D.def[2])}</div>`; };
+    const dv = statIs() === 'dvoa', R = rankTable();
+    // each chip: the offense's rank of the 32 against the rank of the defense it faces; the tint is the gap between them
+    const tone = edge => edge == null ? '' : edge >= 16 ? 'g2' : edge >= 6 ? 'g1' : edge <= -16 ? 'r2' : edge <= -6 ? 'r1' : '';
+    const chip = (label, o, d, k) => { const ro = R.rankOf(o, 'off', k), rd = R.rankOf(d, 'def', k); const edge = ro != null && rd != null ? rd - ro : null; return `<span class="chip ${tone(edge)}"><span class="k">${label}</span><span class="v num"><i${R.style(ro)}>${ro ?? '–'}</i><small>vs</small><i${R.style(rd)}>${rd ?? '–'}</i></span></span>`; };
+    const cmp = (o, d) => `<div class="cmp"><span class="who"><b>${o}</b></span>${chip(dv ? 'DVOA' : 'EPA', o, d, 0)}${chip('Pass', o, d, 1)}${chip('Rush', o, d, 2)}</div>`;
     const card = g => {
       const ra = ratingOf(g.away), rh = ratingOf(g.home);
       const yours = rh - ra + (g.neutral ? 0 : HFA);   // the away team's line by your ratings
       const final = g.status === 'post' ? `<p class="final"><b>Final</b> ${g.away} ${g.awayScore} · ${g.home} ${g.homeScore}</p>` : g.status === 'in' ? `<p class="final"><b>${esc(g.detail || 'Live')}</b> ${g.away} ${g.awayScore} · ${g.home} ${g.homeScore}</p>` : '';
       return `<div class="card" data-id="${esc(g.id)}">
-        <div class="when"><span>${esc(timeFmt.format(new Date(g.kickoff)))}</span><span>${g.neutral ? 'Neutral site' : ''}</span></div>
+        <div class="when"><span>${esc(timeFmt.format(new Date(g.kickoff)))}</span><span>${g.abroad ? 'in ' + esc(g.abroad) : g.neutral ? 'Neutral site' : ''}</span></div>
         <div class="teams">
           <button type="button" class="tm" data-team="${g.away}" aria-label="${esc(TEAMS[g.away] || g.away)}: game log">${logo(g.away)}<span class="ab">${g.away}</span><span class="pr num">${sign(ra, 0)}</span></button>
           <span class="at">${g.neutral ? 'vs' : '@'}</span>
           <button type="button" class="tm home" data-team="${g.home}" aria-label="${esc(TEAMS[g.home] || g.home)}: game log"><span class="pr num">${sign(rh, 0)}</span><span class="ab">${g.home}</span>${logo(g.home)}</button>
         </div>
         <div class="line num"><span><span class="lb">Spread</span>${g.away} ${esc(spreadText(g.spread))}</span><span><span class="lb">Yours</span><b>${g.away} ${esc(spreadText(yours))}</b></span></div>
+        ${(r => r ? `<p class="rest">${r}</p>` : '')(restNote(g))}
         ${cmp(g.away, g.home)}${cmp(g.home, g.away)}
         ${final}
       </div>`;
@@ -762,7 +787,7 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="page mu">
       <div class="wkbar"><button type="button" class="icon-btn" id="prev" aria-label="Previous week" ${week <= 1 ? 'disabled' : ''}>${ICON.back}</button><h2>Week ${week}</h2><button type="button" class="icon-btn" id="next" aria-label="Next week" ${week >= 18 ? 'disabled' : ''}>${ICON.fwd}</button></div>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh">${ICON.refresh}Refresh</button></div>
-      <div class="status"><span>${dv ? 'DVOA-style, offense vs defense' : 'EPA per play, offense vs defense'}</span>${statSeg()}</div>
+      <div class="stick"><div class="status"><span>Ranks of 32: offense vs the defense it faces</span>${statSeg()}</div></div>
       ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
       ${body || `<p class="note">${data ? 'No games that week.' : 'No data yet. Tap Refresh when you have a connection.'}</p>`}
       <div style="height:24px"></div>

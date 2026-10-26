@@ -25,6 +25,15 @@ PBP_URL = f'https://github.com/nflverse/nflverse-data/releases/download/pbp/play
 ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week={week}&seasontype=2&dates={season}'
 LOGO_URL = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/{abbr}.png&w=120&h=120'
 ESPN_TO_NFLVERSE = {'LAR': 'LA', 'WSH': 'WAS'}
+# stadiums outside the US, by a word in their nflverse name, and the city the app shows
+ABROAD = {'Tottenham': 'London', 'Wembley': 'London', 'Twickenham': 'London', 'Stade de France': 'Paris', 'Bernabeu': 'Madrid', 'Bernabéu': 'Madrid', 'Allianz': 'Munich', 'Bayern': 'Munich', 'Deutsche Bank': 'Frankfurt', 'Olympiastadion': 'Berlin', 'Olympic Stadium Berlin': 'Berlin', 'Azteca': 'Mexico City', 'Banorte': 'Mexico City', 'Maracana': 'Rio de Janeiro', 'Maracanã': 'Rio de Janeiro', 'Corinthians': 'São Paulo', 'Neo Qu': 'São Paulo', 'Croke': 'Dublin', 'Aviva': 'Dublin', 'Melbourne': 'Melbourne', 'Cricket Ground': 'Melbourne'}
+
+
+def abroad_city(stadium):
+    for word, city in ABROAD.items():
+        if word.lower() in (stadium or '').lower():
+            return city
+    return None
 NFLVERSE_TO_ESPN = {v: k for k, v in ESPN_TO_NFLVERSE.items()}
 TEAMS = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LA', 'LAC', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WAS']
 ET = ZoneInfo('America/New_York')
@@ -57,11 +66,14 @@ def schedule():
         away, home = r['away_team'], r['home_team']
         a, h = num(r['away_score']), num(r['home_score'])
         spread = num(r['spread_line'])   # positive: the home team is favored by that much
+        rest = lambda v: int(float(v)) if v not in (None, '', 'NA') else None
         games[(int(r['week']), away, home)] = {
             'id': r['game_id'], 'week': int(r['week']), 'kickoff': kick.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'away': away, 'home': home, 'awayScore': int(a) if a is not None else None, 'homeScore': int(h) if h is not None else None,
             'status': 'post' if a is not None and h is not None else 'pre', 'neutral': r['location'] == 'Neutral',
             'spread': spread,   # the away team's spread: +3 means the away team gets three points
+            'awayRest': rest(r.get('away_rest')), 'homeRest': rest(r.get('home_rest')),   # days since each team last played (7 to start the season)
+            'venue': r.get('stadium') or None, 'abroad': abroad_city(r.get('stadium')),
         }
     return games
 

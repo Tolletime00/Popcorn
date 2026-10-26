@@ -4,7 +4,7 @@ NFL bets, power rankings and matchups, on an iPhone.
 
 - **Bets:** each bet is a week, a team, a spread and odds, sized to win $100. It settles itself from the final score (win, loss or push) and the season's P/L and record sit at the top right.
 - **Power Rankings:** every team in a tier from +7 to −10 (points better or worse than average), dragged into place, with its record and six numbers: offense and defense, overall, pass and rush. The six numbers are the team's rank of the 32 for that stat — by EPA per play or by the DVOA-style rating, whichever the switch shows — 1 for the best offense or the stingiest defense, 32 for the worst, coloured green for 1 through grey to red for 32. The team screen has the figures behind the ranks. Tap a team for its game log, coloured by margin, with each opponent's rating beside its name; the team screen shows both sets, with each DVOA-style number's rank among the 32.
-- **Matchups:** the coming week's games in order, with the spread, the line your own ratings imply (home rating − away rating + 1.5 for home field), and each offense scored against the other defense: overall, pass and rush, in EPA or DVOA-style by the same switch. Tap either team for its game log.
+- **Matchups:** the coming week's games in order, with the spread, the line your own ratings imply (home rating − away rating + 1.5 for home field), a rest line when it matters (off a bye, played Thursday or Monday, played overseas, a short week for both), and each offense's rank of the 32 against the rank of the defense it faces — overall, pass and rush, by EPA or DVOA-style on the same switch, tinted by the gap between the two ranks. Games abroad name their city. Tap either team for its game log.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
 
@@ -12,7 +12,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 
 `update.py` runs on GitHub's computers every half hour (the `Football data` workflow in `.github/workflows`) and rewrites `data/data.json`:
 
-- **Schedule, spreads and scores:** [nflverse](https://github.com/nflverse/nflverse-data) `games.csv`, with ESPN's public scoreboard laid over it for live scores, final status and the latest spreads.
+- **Schedule, spreads, scores, rest days and venues:** [nflverse](https://github.com/nflverse/nflverse-data) `games.csv` (its `away_rest`/`home_rest` are the days since each team last played; overseas stadiums are recognised by name), with ESPN's public scoreboard laid over it for live scores, final status and the latest spreads.
 - **EPA:** nflverse play-by-play for the season, the same data rbsdm.com is built on. Regular season, pass and rush plays with an EPA value; offense by the team with the ball, defense by the team without it.
 - **DVOA-style** (`dvoa_calc.py`): our own calculation from the same play-by-play, built the way FTN describes DVOA — success points per play (45% / 60% / 100% of the needed yards on 1st / 2nd / 3rd-and-4th down, bonuses for big plays, penalties for losses and turnovers), compared with the league average for the situation, then adjusted for the opponent. Offense, defense, and the pass and rush splits, as percentages: offense higher is better, defense lower. It is **not** FTN's DVOA — their exact tables aren't public — but on the 2024 and 2025 seasons it landed within about three points of their published offense and defense numbers for the typical team (correlation 0.97 offense, 0.92–0.95 defense). No special teams.
 - **Logos:** ESPN, fetched once into `logos/`.
