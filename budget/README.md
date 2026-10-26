@@ -4,7 +4,7 @@ A monthly budget on an iPhone: recurring bills and income, card spending by acco
 
 - **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, and the balance.
 - **Recurring:** paychecks and bills with what you expect each to be, in sections you name. As the month goes on, tap an item and enter what it actually was.
-- **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. Add an expense as it happens with a date, and it lands in the right month by itself.
+- **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. Expenses sit under their month and, within it, under a divider for each day with that day's total; the + on a day adds an expense to that day (the Add expense button at the top still asks for the date). Drag an expense by the lines at its end, or hold it, to move it to another day or another spot in its day. Tap one to change or delete it.
 - **Savings:** what each month left over, as a list with its total at the top. Add a month by hand, or tap the current month's line to save the balance the app worked out.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
