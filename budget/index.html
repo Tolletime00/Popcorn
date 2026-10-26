@@ -26,7 +26,7 @@
 :root{
   --bg:#fff; --sheet:#fff; --ink:#000;
   --ink-2:rgba(0,0,0,.6); --ink-3:rgba(0,0,0,.36);
-  --line:rgba(0,0,0,.1); --fill:rgba(0,0,0,.055);
+  --line:rgba(0,0,0,.1); --rule:rgba(0,0,0,.22); --fill:rgba(0,0,0,.055);
   --acc:#ff7eb6; --up:#1f9d48; --down:#d0342c;
   --font:'Jost','Futura','Century Gothic',system-ui,sans-serif;
   color-scheme:light dark;
@@ -35,7 +35,7 @@
   :root{
     --bg:#000; --sheet:#1c1c1e; --ink:#fff;
     --ink-2:rgba(255,255,255,.64); --ink-3:rgba(255,255,255,.4);
-    --line:rgba(255,255,255,.16); --fill:rgba(255,255,255,.1);
+    --line:rgba(255,255,255,.16); --rule:rgba(255,255,255,.3); --fill:rgba(255,255,255,.1);
     --up:#30d158; --down:#ff6b63;
   }
 }
@@ -145,9 +145,8 @@ li.row .hd svg{width:20px;height:20px}
 li.row.lifting{opacity:.25}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96;transform:scale(1.02)}
 .ghost .row{background:transparent}
-.sec.day{padding:10px 8px 0 20px}
+.sec.day{margin-top:4px;padding:6px 8px 0 20px;border-top:1px solid var(--rule)}   /* a grey line edge to edge, the day written under it */
 .sec.day .nm{font-size:14px;font-weight:500;color:var(--ink-2)}
-.sec.day .sum{font-size:13px}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 20px 6px}
 .summary .box{display:grid;gap:2px;padding:10px 10px 8px;border-radius:14px;background:var(--fill)}
 .summary .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
@@ -539,10 +538,9 @@ const VIEWS = {
     for (const e of list) {
       const m = e.date.slice(0, 7);
       if (m !== ym) { close(); ym = m; body += `<div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div>`; }
-      if (e.date !== day) {   // a divider for each day, with that day's total and a plus of its own
+      if (e.date !== day) {   // a line across for each day, with the day's name and a plus of its own
         close(); day = e.date;
-        const dayTotal = round2(list.filter(x => x.date === day).reduce((s, x) => s + x.amount, 0));
-        body += `<section class="dayl" data-list="${day}"><div class="sec day"><span class="nm">${esc(fmtWday(day))}</span><span class="sum num">${esc(money(dayTotal))}</span><button type="button" class="plus" data-add="${day}" aria-label="Add an expense on ${esc(fmtWday(day))}">${ICON.plus}</button></div><ul class="rows">`;
+        body += `<section class="dayl" data-list="${day}"><div class="sec day"><span class="nm">${esc(fmtWday(day))}</span><button type="button" class="plus" data-add="${day}" aria-label="Add an expense on ${esc(fmtWday(day))}">${ICON.plus}</button></div><ul class="rows">`;
       }
       body += rowHTML(e);
     }
