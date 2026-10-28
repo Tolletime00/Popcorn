@@ -124,7 +124,7 @@ button.line:active{background:var(--fill)}
 .line .t{display:block;font-size:17px}
 .line .s{display:block;font-size:13px;color:var(--ink-3);margin-top:1px}
 .line .v{font-size:18px;font-weight:500;white-space:nowrap}
-.line.total,.line.rule{margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}   /* a line across, above Savings and above Balance */
+.line.total,.line.rule{margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}   /* a line across between the groups: the swing line, the accounts, Savings, Balance */
 .line.total .t{font-weight:500}
 .line.total .v{font-size:24px;font-weight:600}
 .line.dim .v{color:var(--ink-2);font-weight:400}
@@ -546,8 +546,8 @@ const VIEWS = {
       ${monthBar()}
       <div class="lines">
         ${line('Monthly limit', plain(m.limit), { sub: items.length ? `Income ${money(m.income)} − recurring ${money(m.expense)}` : 'Set up the Recurring tab first', tab: 'rec' })}
-        ${line('Actual recurring vs estimate', m.entered ? signed(m.delta) : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? '' : 'dim' })}
-        ${ACCOUNTS.map(([id, name], i) => line(name, signed(-m.cards[i]), { tab: 'acct:' + id, cls: m.cards[i] ? '' : 'dim' })).join('')}
+        ${line('Actual recurring vs estimate', m.entered ? signed(m.delta) : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? 'rule' : 'rule dim' })}
+        ${ACCOUNTS.map(([id, name], i) => line(name, signed(-m.cards[i]), { tab: 'acct:' + id, cls: (i ? '' : 'rule ') + (m.cards[i] ? '' : 'dim') })).join('')}
         ${line('Savings', signed(-m.aside), { tab: 'aside', cls: m.aside ? 'rule' : 'rule dim', sub: m.aside ? 'Put away this month, counted like an expense' : 'Tap to put some away this month' })}
         ${line('Balance', plain(m.balance), { cls: 'total', vcls: tone(m.balance), sub: `Limit, plus the line above, less the accounts${m.aside ? ' and savings' : ''}` })}
         ${line('Expected balance', plain(pace.expected), { cls: 'soft', sub: `Spending ${base} evenly: ${pace.gone} of ${pace.days} days gone` })}
