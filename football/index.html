@@ -151,7 +151,7 @@ select.field{font-weight:500;letter-spacing:.04em}
 /* ---------- Power Rankings */
 .stick{position:sticky;top:0;z-index:3;background:var(--bg)}
 .stick .status{padding-top:6px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 30px repeat(3,44px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 28px 62px repeat(3,40px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
 .cols span{overflow:hidden;white-space:nowrap}
 .cols span:first-child{text-align:left}
 .tier .sec{padding-top:14px}
@@ -163,14 +163,15 @@ body.dragging .tier.spare{display:block}
 .rows:empty{min-height:18px}
 .row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 40px;align-items:center;column-gap:8px;padding:6px 6px 6px 20px;min-height:54px;background:var(--bg)}
 .row.lifting{opacity:.25}
-.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 30px repeat(3,44px);column-gap:4px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
+.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 28px 62px repeat(3,40px);column-gap:4px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
 .row .tx span{overflow:hidden;white-space:nowrap}
-.row .nm{display:flex;align-items:baseline;gap:8px;text-align:left}
+.row .nm{grid-row:span 2;align-self:center;display:grid;gap:1px;text-align:left}
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .row .rc{font-size:13px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
 .row .tx .v{font-size:18px;font-weight:500}
 .row .tx b{font-size:20px;font-weight:600;color:var(--ink)}
+.row .tx .all{grid-row:span 2;align-self:center;font-size:54px;line-height:1;font-weight:600;letter-spacing:-.03em;color:var(--ink)}   /* the team as a whole: as tall as the offense and defense rows together */
 .row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
@@ -357,11 +358,15 @@ const statValue = (t, side, k) => { if (statIs() === 'dvoa') { const d = dvoaOf(
 function rankTable() {
   const L = {};
   for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) L[side + k] = ABBRS.map(t => statValue(t, side, k)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);
+  // the team as a whole: the average of its offense and defense, the defense turned round so that lower (better) counts for it
+  const net = t => { const o = statValue(t, 'off', 0), d = statValue(t, 'def', 0); return o == null || d == null ? null : (o - d) / 2; };
+  L.all = ABBRS.map(net).filter(v => v != null).sort((a, b) => b - a);
   const n = Math.max(2, ...Object.values(L).map(x => x.length));
   const rankOf = (t, side, k) => { const v = statValue(t, side, k); return v == null ? null : L[side + k].indexOf(v) + 1; };
+  const rankAll = t => { const v = net(t); return v == null ? null : L.all.indexOf(v) + 1; };
   // green for the best, red for the worst, the plain text colour in the middle
   const style = r => { if (r == null) return ''; const pos = (r - 1) / (n - 1), p = Math.round(Math.abs(pos - .5) * 200); return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`; };
-  return { rankOf, style, n };
+  return { rankOf, rankAll, style, n };
 }
 // Who is better rested for a game, and why: from the days of rest in the schedule and each team's previous game.
 function restNote(g) {
@@ -692,19 +697,20 @@ const VIEWS = {
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
     const dv = statIs() === 'dvoa', R = rankTable();
     const cell = (t, side, k, bold) => { const r = R.rankOf(t, side, k); return `<${bold ? 'b' : 'span class="v"'}${R.style(r)}>${r == null ? '–' : r}</${bold ? 'b' : 'span'}>`; };
+    const all = t => { const r = R.rankAll(t); return `<b class="all"${R.style(r)} aria-label="Overall rank ${r == null ? 'unknown' : r} of 32">${r == null ? '–' : r}</b>`; };
     const rowHTML = t => `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
-      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span>${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
-        <span></span><span class="lab">Def</span>${cell(t, 'def', 0, true)}${cell(t, 'def', 1)}${cell(t, 'def', 2)}</span>
+      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span>${all(t)}${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
+        <span class="lab">Def</span>${cell(t, 'def', 0, true)}${cell(t, 'def', 1)}${cell(t, 'def', 2)}</span>
       <span class="hd" aria-hidden="true">${ICON.grip}</span>
     </li>`;
     viewEl.innerHTML = `<section class="page rk">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
       <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span></div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      <p class="fine">Where each team ranks of the 32 by ${dv ? 'the DVOA-style rating' : 'EPA per play'}: offense, then defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).${dv ? ' ' + DVOA_NOTE : ''}</p>
+      <p class="fine">Where each team ranks of the 32 by ${dv ? 'the DVOA-style rating' : 'EPA per play'}: the big number is the team as a whole (its offense and defense averaged, the defense counted the right way round), then offense and defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).${dv ? ' ' + DVOA_NOTE : ''}</p>
       <div class="stick"><div class="status"><span>Ranks of 32 by</span>${statSeg()}</div>
-      <div class="cols num"><span>Team · record</span><span></span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div></div>
+      <div class="cols num"><span>Team</span><span></span><span>Overall</span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
