@@ -128,6 +128,8 @@ button.line:active{background:var(--fill)}
 .line.total .t{font-weight:500}
 .line.total .v{font-size:24px;font-weight:600}
 .line.dim .v{color:var(--ink-2);font-weight:400}
+.line.soft .t,.line.soft .v{color:var(--ink-2);font-weight:400}
+.line.soft .s{color:var(--ink-3)}
 
 /* ---------- Recurring and the accounts */
 .row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:11px 20px;text-align:left}
@@ -342,6 +344,14 @@ function month(ym) {
   return { ...r, cards, cardsTotal, balance: round2(r.limit + r.delta - cardsTotal) };
 }
 const hasData = ym => items.length > 0 || expenses.some(e => e.date.slice(0, 7) === ym) || !!actuals[ym];
+// Spending the limit evenly, a day at a time, so the month ends on exactly zero: what a day gets, and what should be left today.
+const daysIn = ym => new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
+function evenPace(ym, limit) {
+  const days = daysIn(ym), today = todayISO(), tm = today.slice(0, 7);
+  const gone = ym < tm ? days : ym > tm ? 0 : +today.slice(8, 10);   // today counts as gone
+  const perDay = limit / days;
+  return { days, gone, perDay, expected: limit - perDay * gone };
+}
 
 /* ================================================================== navigation */
 const viewEl = $('#view');
@@ -523,7 +533,7 @@ const VIEWS = {
 
   /* ---------------- Month: the summary */
   month() {
-    const m = month(state.ym);
+    const m = month(state.ym), pace = evenPace(state.ym, m.limit);
     const line = (t, v, { sub = '', cls = '', tab = '', vcls = '' } = {}) => `<${tab ? 'button type="button"' : 'div'} class="line ${cls}" ${tab ? `data-go="${tab}"` : ''}><span><span class="t">${esc(t)}</span>${sub ? `<span class="s">${esc(sub)}</span>` : ''}</span><span class="v num ${vcls}">${esc(v)}</span></${tab ? 'button' : 'div'}>`;
     const fresh = !items.length && !expenses.length && !Object.keys(actuals).length && !LS.get(K.welcomed, false);   // nothing entered yet: offer the iPhone's backup
     viewEl.innerHTML = `<section class="page">
@@ -535,6 +545,8 @@ const VIEWS = {
         ${line('Actual recurring vs estimate', m.entered ? money(m.delta, { paren: false }).replace(/^\$/, '+$') : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? '' : 'dim' })}
         ${ACCOUNTS.map(([id, name], i) => line(name, money(m.cards[i]), { tab: 'acct:' + id, cls: m.cards[i] ? '' : 'dim' })).join('')}
         ${line('Balance', money(m.balance), { cls: 'total', vcls: tone(m.balance), sub: 'Limit, plus the line above, less the accounts' })}
+        ${line('Expected balance', money(pace.expected), { cls: 'soft', sub: `Spending the limit evenly: ${pace.gone} of ${pace.days} days gone` })}
+        ${line('Spending limit per day', money(pace.perDay), { cls: 'soft', sub: `Limit ÷ ${pace.days} days` })}
       </div>
     </section>`;
     $('#more').addEventListener('click', moreSheet); wireMonthBar();

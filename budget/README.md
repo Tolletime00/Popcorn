@@ -17,6 +17,8 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 - **Actual recurring vs estimate** = how much the month came in under the plan, over every item with an actual entered: for an expense, estimate − actual; for income, actual − estimate. Positive (green) means under the plan, negative (red) means over.
 - **Each account** = the expenses on that account dated in the month, pending ones included, less any refunds.
 - **Balance** = monthly limit + actual recurring vs estimate − the accounts.
+- **Spending limit per day** = monthly limit ÷ the days in the month, in grey under the balance.
+- **Expected balance** = monthly limit − spending limit per day × the days gone so far (today included): what would be left if the limit were spent evenly so the month ended on exactly zero. A finished month shows $0; one not started yet shows the whole limit.
 
 Everything stays on the device it was typed into. The three dots back it all up to one file for OneDrive and restore from it; that file is also how the numbers move from an iPhone to an iPad.
 
