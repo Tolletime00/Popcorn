@@ -210,8 +210,12 @@ body.dragging .tier.spare{display:block}
 .wkbar h2{font-size:17px;font-weight:500;text-align:center}
 .card{margin:8px 20px 4px;padding:12px 14px 10px;border-radius:16px;background:var(--fill)}
 .card .when{font-size:12px;color:var(--ink-3);margin-bottom:8px;display:flex;justify-content:space-between}
-.card .teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
-.card .tm{display:flex;align-items:center;gap:8px;min-height:44px;margin:-6px -8px;padding:6px 8px;border-radius:14px;width:calc(100% + 16px)}
+.card .teams{display:grid;grid-template-columns:28px minmax(0,1fr) auto minmax(0,1fr) 28px;align-items:center;gap:4px}
+.card .pick{width:28px;height:28px;border-radius:14px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--ink-3);color:transparent;transition:background .15s,box-shadow .15s,color .15s}
+.card .pick svg{width:16px;height:16px}
+.card .pick.on{background:var(--acc);box-shadow:none;color:#000}
+.card .pick:active{background:var(--line)}
+.card .tm{display:flex;align-items:center;gap:6px;min-height:44px;margin:-6px 0;padding:6px 2px;border-radius:14px;width:100%;min-width:0}
 .card .tm.home{justify-content:flex-end}
 .card .tm:active{background:var(--line)}
 .card .tm .ab{font-size:19px;font-weight:500;letter-spacing:.04em}
@@ -234,6 +238,15 @@ body.dragging .tier.spare{display:block}
 .chip.g1{background:var(--g1)}.chip.g2{background:var(--g2)}.chip.r1{background:var(--r1)}.chip.r2{background:var(--r2)}
 .card .final{font-size:13px;color:var(--ink-2);text-align:center;margin-top:8px}
 .card .final b{font-weight:500;color:var(--ink)}
+@media (max-width:359px){   /* the smallest iPhones: the same card, a little tighter */
+  .card{margin:8px 12px 4px}
+  .card .teams{grid-template-columns:24px minmax(0,1fr) auto minmax(0,1fr) 24px;gap:3px}
+  .card .pick{width:24px;height:24px;border-radius:12px}
+  .card .pick svg{width:14px;height:14px}
+  .card .tm{gap:4px}
+  .card .tm .ab{font-size:17px}
+  .card .tm .logo{width:24px;height:24px}
+}
 
 /* ---------- add to Home Screen */
 .install{min-height:100%;display:grid;align-content:center;gap:22px;padding:32px 28px}
@@ -330,21 +343,23 @@ const ICON = {
   fwd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5l7.5 7.5L9 19.5"/></svg>',
   refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>',
   grip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10M7 15h10"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 
 /* ================================================================== storage */
-const K = { bets: 'football.bets', ranks: 'football.ranks', data: 'football.data', meta: 'football.meta', skip: 'football.skipInstall' };
+const K = { bets: 'football.bets', ranks: 'football.ranks', picks: 'football.picks', data: 'football.data', meta: 'football.meta', skip: 'football.skipInstall' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 let bets = arr(LS.get(K.bets, []));
 let ranks = arr(LS.get(K.ranks, []));   // [{ team, rating }] top to bottom
+let picks = LS.get(K.picks, {}); if (!picks || typeof picks !== 'object' || Array.isArray(picks)) picks = {};   // picks[gameId] = the team with the check mark
 let data = LS.get(K.data, null);        // the latest data.json
 if (data && !Array.isArray(data.games)) data = null;
 let meta = Object.assign({ unsaved: 0, lastBackup: null, fetched: null }, LS.get(K.meta, {}));
 function persist(changes = 0) {
-  if (!LS.set(K.bets, bets) || !LS.set(K.ranks, ranks)) toast('Couldn’t save on this phone. Its storage may be full.');
+  if (!LS.set(K.bets, bets) || !LS.set(K.ranks, ranks) || !LS.set(K.picks, picks)) toast('Couldn’t save on this phone. Its storage may be full.');
   if (changes) { meta.unsaved = (meta.unsaved || 0) + changes; LS.set(K.meta, meta); }
 }
 const games = () => data ? data.games : [];
@@ -772,6 +787,8 @@ const VIEWS = {
     const tone = edge => edge == null ? '' : edge >= 16 ? 'g2' : edge >= 6 ? 'g1' : edge <= -16 ? 'r2' : edge <= -6 ? 'r1' : '';
     const chip = (label, o, d, k) => { const ro = R.rankOf(o, 'off', k), rd = R.rankOf(d, 'def', k); const edge = ro != null && rd != null ? rd - ro : null; return `<span class="chip ${tone(edge)}"><span class="k">${label}</span><span class="v num"><i${R.style(ro)}>${ro ?? '–'}</i><small>vs</small><i${R.style(rd)}>${rd ?? '–'}</i></span></span>`; };
     const cmp = (o, d) => `<div class="cmp"><span class="who"><b>${o}</b></span>${chip(dv ? 'DVOA' : 'EPA', o, d, 0)}${chip('Pass', o, d, 1)}${chip('Rush', o, d, 2)}</div>`;
+    // a check mark beside each team; one per game, so checking the other team moves it
+    const pick = (g, t) => `<button type="button" class="pick${picks[g.id] === t ? ' on' : ''}" data-pick="${t}" aria-pressed="${picks[g.id] === t}" aria-label="Check ${esc(TEAMS[t] || t)}">${ICON.check}</button>`;
     const card = g => {
       const ra = ratingOf(g.away), rh = ratingOf(g.home);
       const yours = rh - ra + (g.neutral ? 0 : HFA);   // the away team's line by your ratings
@@ -779,9 +796,9 @@ const VIEWS = {
       return `<div class="card" data-id="${esc(g.id)}">
         <div class="when"><span>${esc(timeFmt.format(new Date(g.kickoff)))}</span><span>${g.abroad ? 'in ' + esc(g.abroad) : g.neutral ? 'Neutral site' : ''}</span></div>
         <div class="teams">
-          <button type="button" class="tm" data-team="${g.away}" aria-label="${esc(TEAMS[g.away] || g.away)}: game log">${logo(g.away)}<span class="ab">${g.away}</span><span class="pr num">${sign(ra, 0)}</span></button>
+          ${pick(g, g.away)}<button type="button" class="tm" data-team="${g.away}" aria-label="${esc(TEAMS[g.away] || g.away)}: game log">${logo(g.away)}<span class="ab">${g.away}</span><span class="pr num">${sign(ra, 0)}</span></button>
           <span class="at">${g.neutral ? 'vs' : '@'}</span>
-          <button type="button" class="tm home" data-team="${g.home}" aria-label="${esc(TEAMS[g.home] || g.home)}: game log"><span class="pr num">${sign(rh, 0)}</span><span class="ab">${g.home}</span>${logo(g.home)}</button>
+          <button type="button" class="tm home" data-team="${g.home}" aria-label="${esc(TEAMS[g.home] || g.home)}: game log"><span class="pr num">${sign(rh, 0)}</span><span class="ab">${g.home}</span>${logo(g.home)}</button>${pick(g, g.home)}
         </div>
         <div class="line num"><span><span class="lb">Spread</span>${g.away} ${esc(spreadText(g.spread))}</span><span><span class="lb">Yours</span><b>${g.away} ${esc(spreadText(yours))}</b></span></div>
         ${(r => r ? `<p class="rest">${r}</p>` : '')(restNote(g))}
@@ -803,7 +820,17 @@ const VIEWS = {
     $('#prev').addEventListener('click', () => { page.week = week - 1; page.scroll = 0; render(); });
     $('#next').addEventListener('click', () => { page.week = week + 1; page.scroll = 0; render(); });
     $('.refresh').addEventListener('click', () => refreshData(true));
-    $('.page').addEventListener('click', e => { const b = e.target.closest('[data-team]'); if (b) go({ name: 'team', team: b.dataset.team }); });
+    $('.page').addEventListener('click', e => {
+      const p = e.target.closest('[data-pick]');
+      if (p) {
+        const card = p.closest('.card'), id = card.dataset.id, t = p.dataset.pick;
+        if (picks[id] === t) delete picks[id]; else picks[id] = t;
+        for (const b of $$('[data-pick]', card)) { const on = picks[id] === b.dataset.pick; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
+        persist(1);
+        return;
+      }
+      const b = e.target.closest('[data-team]'); if (b) go({ name: 'team', team: b.dataset.team });
+    });
   },
 };
 
@@ -854,7 +881,7 @@ function betSheet(id) {
 }
 
 /* ================================================================== backup and the three dots */
-const backupText = () => JSON.stringify({ app: APP, version: 1, saved: new Date().toISOString(), bets, ranks }, null, 1);
+const backupText = () => JSON.stringify({ app: APP, version: 2, saved: new Date().toISOString(), bets, ranks, picks }, null, 1);
 async function backup() {
   const how = await shareFile(BACKUP_NAME, backupText(), 'application/json');
   if (how === 'cancelled') return;
@@ -869,7 +896,7 @@ async function restore(file) {
   openSheet(`${head('Replace everything?')}<p class="foot">The backup from ${esc(d.saved ? new Date(d.saved).toLocaleString() : 'an unknown time')} replaces your ${plural(bets.length, 'bet', 'bets')} and rankings with its ${plural(d.bets.length, 'bet', 'bets')} and rankings.</p>
     <button type="button" class="item danger" id="go"><span class="l">Replace with the backup</span></button>
     <button type="button" class="item" data-close><span class="l">Keep what I have</span></button>`, el => {
-    arm($('#go', el), 'replace', () => { bets = arr(d.bets); ranks = arr(d.ranks); meta.ranked = true; tidyRanks(); persist(); closeSheet(); render(); toast('Restored.'); });
+    arm($('#go', el), 'replace', () => { bets = arr(d.bets); ranks = arr(d.ranks); picks = d.picks && typeof d.picks === 'object' && !Array.isArray(d.picks) ? d.picks : {}; meta.ranked = true; tidyRanks(); persist(); closeSheet(); render(); toast('Restored.'); });
   });
 }
 $('#pick').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) restore(f); });
