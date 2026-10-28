@@ -636,7 +636,7 @@ const VIEWS = {
       }
       if (e.target.closest('.tx')) {
         if (kind === 'task') editTask(id);
-        else if (kind === 'routine') { if (isDivider(id)) dividerSheet(id); else editRoutine(id); }
+        else if (kind === 'routine') { if (isDivider(id)) dividerSheet(id, day); else editRoutine(id); }
         else if (kind === 'monthly') editMonthly(id);
         else editSpecial(id);
       }
@@ -863,8 +863,8 @@ function editMonthly(id) {
     arm($('#del', el), 'delete', () => { monthly = monthly.filter(t => t.id !== id); persist(1); closeSheet(); render(true); });
   });
 }
-// A divider on the Weekly tab or the Calendar: rename it, or take it off this weekday or all of them.
-function dividerSheet(id) {
+// A divider on the Weekly tab or the Calendar: rename it, or take it off just this day (from the Calendar), this weekday, or all of them.
+function dividerSheet(id, day) {
   const r = routineById(id); if (!r) return;
   const twins = routine.filter(x => x.divider && x.text === r.text && x.id !== id).length;
   openSheet(`${head('Divider')}<form class="form" id="f" autocomplete="off">
@@ -872,7 +872,7 @@ function dividerSheet(id) {
       <label class="lb">Every</label>${daySeg(r.dow)}
       <button type="submit" class="primary">Save</button>
     </form>
-    <div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete</span><span class="s">From every ${DOW[r.dow]}</span></button>${twins ? `<button type="button" class="item danger" id="delAll"><span class="l">Delete from every day</span><span class="s">This one and the ${plural(twins, 'other', 'others')} like it</span></button>` : ''}</div>`, el => {
+    <div class="actions">${day ? `<button type="button" class="item" id="delDay"><span class="l">Remove from this day only</span><span class="s">${esc(fmtDay(day))} · every other ${DOW[r.dow]} keeps it</span></button>` : ''}<button type="button" class="item danger" id="del"><span class="l">Delete</span><span class="s">From every ${DOW[r.dow]}</span></button>${twins ? `<button type="button" class="item danger" id="delAll"><span class="l">Delete from every day</span><span class="s">This one and the ${plural(twins, 'other', 'others')} like it</span></button>` : ''}</div>`, el => {
     const f = $('#f', el), dow = wireSeg(el, 'dow');
     f.addEventListener('submit', e => {
       e.preventDefault();
@@ -880,6 +880,8 @@ function dividerSheet(id) {
       Object.assign(r, { text: v, dow: +dow() });
       persist(1); closeSheet(); render(true);
     });
+    const one = $('#delDay', el);   // the same note a ticked-off weekly item leaves: gone from that day, nowhere else
+    if (one) one.addEventListener('click', () => { routineDone[`${id}|${day}`] = true; persist(1); closeSheet(); render(true); });
     arm($('#del', el), 'delete', () => { routine = routine.filter(t => t.id !== id); persist(1); closeSheet(); render(true); });
     const all = $('#delAll', el);
     if (all) arm(all, 'delete them all', () => { const text = r.text; routine = routine.filter(t => !(t.divider && t.text === text)); persist(1); closeSheet(); render(true); });
