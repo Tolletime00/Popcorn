@@ -294,7 +294,7 @@ const ICON = {
 };
 
 /* ================================================================== storage */
-const K = { items: 'budget.recurring', sections: 'budget.sections', actuals: 'budget.actuals', expenses: 'budget.expenses', savings: 'budget.savings', meta: 'budget.meta', skip: 'budget.skipInstall', seeded: 'budget.seeded', welcomed: 'budget.welcomed' };
+const K = { items: 'budget.recurring', sections: 'budget.sections', actuals: 'budget.actuals', expenses: 'budget.expenses', savings: 'budget.savings', aside: 'budget.aside', meta: 'budget.meta', skip: 'budget.skipInstall', seeded: 'budget.seeded', welcomed: 'budget.welcomed' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
@@ -303,10 +303,11 @@ let items = arr(LS.get(K.items, []));         // recurring: { id, name, amount, 
 let sections = arr(LS.get(K.sections, []));   // { id, name, order }
 let actuals = LS.get(K.actuals, {}) || {};    // actuals[ym][itemId] = amount
 let expenses = arr(LS.get(K.expenses, []));   // { id, account, date, amount, note, order, pending }
-let savings = arr(LS.get(K.savings, []));     // { ym, amount }
+let savings = arr(LS.get(K.savings, []));     // { ym, amount }: what each month left over, the Savings tab
+let aside = LS.get(K.aside, {}); if (!aside || typeof aside !== 'object' || Array.isArray(aside)) aside = {};   // aside[ym] = the Savings row on the Month tab: put away that month, counted like an expense
 let meta = Object.assign({ unsaved: 0, lastBackup: null }, LS.get(K.meta, {}));
 function persist(changes = 0) {
-  const ok = LS.set(K.items, items) && LS.set(K.sections, sections) && LS.set(K.actuals, actuals) && LS.set(K.expenses, expenses) && LS.set(K.savings, savings);
+  const ok = LS.set(K.items, items) && LS.set(K.sections, sections) && LS.set(K.actuals, actuals) && LS.set(K.expenses, expenses) && LS.set(K.savings, savings) && LS.set(K.aside, aside);
   if (!ok) toast('Couldn’t save on this device. Its storage may be full.');
   if (changes) { meta.unsaved = (meta.unsaved || 0) + changes; LS.set(K.meta, meta); }
 }
@@ -340,17 +341,18 @@ const spent = (account, ym) => round2(expenses.filter(e => e.account === account
 function month(ym) {
   const r = recurring(ym);
   const cards = ACCOUNTS.map(([id]) => spent(id, ym));
-  const cardsTotal = round2(cards.reduce((s, v) => s + v, 0));
-  return { ...r, cards, cardsTotal, balance: round2(r.limit + r.delta - cardsTotal) };
+  const cardsTotal = round2(cards.reduce((s, v) => s + v, 0)), putAway = asideOf(ym);
+  return { ...r, cards, cardsTotal, aside: putAway, balance: round2(r.limit + r.delta - cardsTotal - putAway) };
 }
-const hasData = ym => items.length > 0 || expenses.some(e => e.date.slice(0, 7) === ym) || !!actuals[ym];
-// Spending the limit evenly, a day at a time, so the month ends on exactly zero: what a day gets, and what should be left today.
+const asideOf = ym => Math.max(0, +aside[ym] || 0);
+const hasData = ym => items.length > 0 || expenses.some(e => e.date.slice(0, 7) === ym) || !!actuals[ym] || !!aside[ym];
+// Spending the limit (less what is put away) evenly, a day at a time, so the month ends on exactly zero: what a day gets, and what should be left today.
 const daysIn = ym => new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
-function evenPace(ym, limit) {
+function evenPace(ym, base) {
   const days = daysIn(ym), today = todayISO(), tm = today.slice(0, 7);
   const gone = ym < tm ? days : ym > tm ? 0 : +today.slice(8, 10);   // today counts as gone
-  const perDay = limit / days;
-  return { days, gone, perDay, expected: limit - perDay * gone };
+  const perDay = base / days;
+  return { days, gone, perDay, expected: base - perDay * gone };
 }
 
 /* ================================================================== navigation */
@@ -533,7 +535,9 @@ const VIEWS = {
 
   /* ---------------- Month: the summary */
   month() {
-    const m = month(state.ym), pace = evenPace(state.ym, m.limit);
+    const m = month(state.ym), pace = evenPace(state.ym, m.limit - m.aside), base = m.aside ? 'the limit less savings' : 'the limit';
+    // the column reads like a sum: what comes in plain, what goes out with a minus, and the swing line with its sign either way
+    const plain = n => money(n, { paren: false }), signed = n => n > 0.004 ? '+' + money(n) : plain(n);
     const line = (t, v, { sub = '', cls = '', tab = '', vcls = '' } = {}) => `<${tab ? 'button type="button"' : 'div'} class="line ${cls}" ${tab ? `data-go="${tab}"` : ''}><span><span class="t">${esc(t)}</span>${sub ? `<span class="s">${esc(sub)}</span>` : ''}</span><span class="v num ${vcls}">${esc(v)}</span></${tab ? 'button' : 'div'}>`;
     const fresh = !items.length && !expenses.length && !Object.keys(actuals).length && !LS.get(K.welcomed, false);   // nothing entered yet: offer the iPhone's backup
     viewEl.innerHTML = `<section class="page">
@@ -541,17 +545,18 @@ const VIEWS = {
       ${fresh ? `<div class="welcome"><p class="lead">Already use ${APP} on your iPhone?</p><p class="help">Back up there (the three dots, then Back up) and save ${BACKUP_NAME} to OneDrive. Restore it here and everything comes across.</p><label class="primary" for="pick">Restore from a backup</label><button type="button" class="quiet" id="fresh">Start fresh instead</button></div>` : ''}
       ${monthBar()}
       <div class="lines">
-        ${line('Monthly limit', money(m.limit), { sub: items.length ? `Income ${money(m.income)} − recurring ${money(m.expense)}` : 'Set up the Recurring tab first', tab: 'rec' })}
-        ${line('Actual recurring vs estimate', m.entered ? money(m.delta, { paren: false }).replace(/^\$/, '+$') : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? '' : 'dim' })}
-        ${ACCOUNTS.map(([id, name], i) => line(name, money(m.cards[i]), { tab: 'acct:' + id, cls: m.cards[i] ? '' : 'dim' })).join('')}
-        ${line('Balance', money(m.balance), { cls: 'total', vcls: tone(m.balance), sub: 'Limit, plus the line above, less the accounts' })}
-        ${line('Expected balance', money(pace.expected), { cls: 'soft', sub: `Spending the limit evenly: ${pace.gone} of ${pace.days} days gone` })}
-        ${line('Spending limit per day', money(pace.perDay), { cls: 'soft', sub: `Limit ÷ ${pace.days} days` })}
+        ${line('Monthly limit', plain(m.limit), { sub: items.length ? `Income ${money(m.income)} − recurring ${money(m.expense)}` : 'Set up the Recurring tab first', tab: 'rec' })}
+        ${line('Actual recurring vs estimate', m.entered ? signed(m.delta) : '–', { sub: m.entered ? `${plural(m.entered, 'actual', 'actuals')} entered · under (+) or over (−)` : 'No actuals entered yet', tab: 'rec', vcls: m.entered ? tone(m.delta) : '', cls: m.entered ? '' : 'dim' })}
+        ${ACCOUNTS.map(([id, name], i) => line(name, signed(-m.cards[i]), { tab: 'acct:' + id, cls: m.cards[i] ? '' : 'dim' })).join('')}
+        ${line('Savings', signed(-m.aside), { tab: 'aside', cls: m.aside ? '' : 'dim', sub: m.aside ? 'Put away this month, counted like an expense' : 'Tap to put some away this month' })}
+        ${line('Balance', plain(m.balance), { cls: 'total', vcls: tone(m.balance), sub: `Limit, plus the line above, less the accounts${m.aside ? ' and savings' : ''}` })}
+        ${line('Expected balance', plain(pace.expected), { cls: 'soft', sub: `Spending ${base} evenly: ${pace.gone} of ${pace.days} days gone` })}
+        ${line('Spending limit per day', plain(pace.perDay), { cls: 'soft', sub: `${base[0].toUpperCase() + base.slice(1)} ÷ ${pace.days} days` })}
       </div>
     </section>`;
     $('#more').addEventListener('click', moreSheet); wireMonthBar();
     const skipWelcome = $('#fresh'); if (skipWelcome) skipWelcome.addEventListener('click', () => { LS.set(K.welcomed, true); render(); });
-    $('.lines').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const [tab, acct] = b.dataset.go.split(':'); if (acct) state.acct = acct; goTab(tab); });
+    $('.lines').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const [tab, acct] = b.dataset.go.split(':'); if (tab === 'aside') return asideSheet(); if (acct) state.acct = acct; goTab(tab); });
   },
 
   /* ---------------- Recurring: the plan, and this month's actuals against it */
@@ -736,6 +741,27 @@ function expenseSheet(id, onDay, asPending) {   // onDay: a date to start with, 
   });
 }
 
+function asideSheet() {   // the Savings row: how much of this month goes into savings
+  const ym = state.ym, v = asideOf(ym);
+  openSheet(`${head(`Savings for ${ymText(ym)}`)}<form class="form" id="f" autocomplete="off">
+      <label class="lb">Put away this month</label>
+      ${moneyHTML('amount', v || null)}
+      <p class="foot" style="padding:0 2px">Comes off the balance like an expense, and off what the month has to spend each day.</p>
+      <button type="submit" class="primary">Save</button>
+    </form>
+    ${v ? '<div class="actions"><button type="button" class="item danger" id="clear"><span class="l">Clear</span><span class="s">Nothing put away this month</span></button></div>' : ''}`, el => {
+    const f = $('#f', el);
+    setTimeout(() => $('[data-k=amount]', f).focus(), 350);
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const amount = readMoney(el, 'amount');
+      if (amount) aside[ym] = amount; else delete aside[ym];
+      persist(1); closeSheet(); render(true);
+    });
+    const clear = $('#clear', el); if (clear) clear.addEventListener('click', () => { delete aside[ym]; persist(1); closeSheet(); render(true); });
+  });
+}
+
 function savingsSheet(ym, liveYm) {
   const s = ym ? savings.find(x => x.ym === ym) : null;
   const start = s ? s.ym : liveYm || state.ym;
@@ -764,7 +790,7 @@ function savingsSheet(ym, liveYm) {
 }
 
 /* ================================================================== backup and the three dots */
-const backupText = () => JSON.stringify({ app: APP, version: 2, saved: new Date().toISOString(), items, sections, actuals, expenses, savings }, null, 1);
+const backupText = () => JSON.stringify({ app: APP, version: 2, saved: new Date().toISOString(), items, sections, actuals, expenses, savings, aside }, null, 1);
 async function backup() {
   const how = await shareFile(BACKUP_NAME, backupText(), 'application/json');
   if (how === 'cancelled') return;
@@ -780,7 +806,7 @@ async function restore(file) {
     <button type="button" class="item danger" id="go"><span class="l">Replace with the backup</span></button>
     <button type="button" class="item" data-close><span class="l">Keep what I have</span></button>`, el => {
     arm($('#go', el), 'replace', () => {
-      items = arr(d.items); sections = arr(d.sections); actuals = d.actuals && typeof d.actuals === 'object' ? d.actuals : {}; expenses = arr(d.expenses); savings = arr(d.savings);
+      items = arr(d.items); sections = arr(d.sections); actuals = d.actuals && typeof d.actuals === 'object' ? d.actuals : {}; expenses = arr(d.expenses); savings = arr(d.savings); aside = d.aside && typeof d.aside === 'object' && !Array.isArray(d.aside) ? d.aside : {};
       tidy(); persist(); closeSheet(); render(); toast('Restored.');
     });
   });

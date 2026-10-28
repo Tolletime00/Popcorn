@@ -2,7 +2,7 @@
 
 A monthly budget on an iPad or an iPhone: recurring bills and income, card spending by account, and what each month left over. On an iPad the four sections sit in a sidebar and the forms open as dialogs; on an iPhone they are the tabs along the bottom and sheets that slide up. Same app, same address, same backup file.
 
-- **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, and the balance.
+- **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, a Savings row for whatever you put away that month (tap it to enter the amount), and the balance. The column reads like a sum: money in is plain, money out has a minus.
 - **Recurring:** paychecks and bills with what you expect each to be, in sections you name. As the month goes on, tap an item and enter what it actually was.
 - **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen. A Pending section comes first, for charges the card still shows as pending; then each month, and under it a grey line for every day (this month shows every day so far, with something on it or not; older months only the days that had something). The + on a day adds an expense to that day, the + on Pending adds a pending one, and the Add expense button at the top asks for the date. Drag an expense by the lines at its end, or hold it, to move it to another day, into or out of Pending, or to another spot in its day. Tap one to change it, switch it between Pending and Posted, or delete it. A pending charge counts into its month like any other.
 
@@ -16,9 +16,10 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 - **Monthly limit** = expected income − expected recurring expenses, from the Recurring tab.
 - **Actual recurring vs estimate** = how much the month came in under the plan, over every item with an actual entered: for an expense, estimate − actual; for income, actual − estimate. Positive (green) means under the plan, negative (red) means over.
 - **Each account** = the expenses on that account dated in the month, pending ones included, less any refunds.
-- **Balance** = monthly limit + actual recurring vs estimate − the accounts.
-- **Spending limit per day** = monthly limit ÷ the days in the month, in grey under the balance.
-- **Expected balance** = monthly limit − spending limit per day × the days gone so far (today included): what would be left if the limit were spent evenly so the month ended on exactly zero. A finished month shows $0; one not started yet shows the whole limit.
+- **Savings** (the Month tab row) = what you put away that month, entered by hand. It counts like an expense.
+- **Balance** = monthly limit + actual recurring vs estimate − the accounts − savings.
+- **Spending limit per day** = (monthly limit − savings) ÷ the days in the month, in grey under the balance.
+- **Expected balance** = (monthly limit − savings) − spending limit per day × the days gone so far (today included): what would be left if the limit were spent evenly so the month ended on exactly zero. A finished month shows $0; one not started yet shows the whole limit.
 
 Everything stays on the device it was typed into. The three dots back it all up to one file for OneDrive and restore from it; that file is also how the numbers move from an iPhone to an iPad.
 
