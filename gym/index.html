@@ -114,10 +114,18 @@ body[data-view=edit] #tabs,body[data-view=track] #tabs,body[data-view=install] #
 .num::placeholder{color:var(--ink-3)}
 .num:focus-visible{box-shadow:inset 0 0 0 1.5px var(--ink)}
 
-/* ---------- Workout tab: start a workout */
+/* ---------- Workout tab: start a workout; the list can be dragged into your own order */
 .start{min-height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
 .start .top{padding:34px 24px 12px}
+.start .list .row{grid-template-columns:minmax(0,1fr) 40px;gap:6px;padding:4px 6px 4px 20px;cursor:pointer}
+.start .list .row .go{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;width:100%;min-height:46px;padding:6px 0;text-align:left}
 .start .list .row .t{font-size:19px;font-weight:400}
+.start .list .row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+.start .list .row .hd svg{width:20px;height:20px}
+.row.lifting{opacity:.25}
+.ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96;transform:scale(1.02)}
+.ghost .row{background:transparent}
+.ghost .list{padding:0}
 
 /* ---------- the workout itself */
 .track{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
@@ -355,6 +363,7 @@ const ICON = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   fwd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5l7.5 7.5L9 19.5"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10M7 15h10"/></svg>',
 };
 
 /* ================================================================== storage
@@ -382,8 +391,9 @@ function bump(changes) { if (changes) { meta.unsaved = (meta.unsaved || 0) + cha
 const routineById = id => routines.find(r => r.id === id);
 const lastWorkoutOf = routineId => workouts.filter(w => w.routineId === routineId).reduce((a, w) => (!a || w.started > a.started ? w : a), null);
 const sortedRoutines = () => [...routines].sort((a, b) => collator.compare(a.name || '', b.name || ''));
-// On the Workout tab the routine that has waited longest comes first.
+// On the Workout tab the routine that has waited longest comes first, until you drag them into an order of your own; then that order holds, with new routines at the end.
 const byDue = () => [...routines].sort((a, b) => { const la = (lastWorkoutOf(a.id) || {}).started || '', lb = (lastWorkoutOf(b.id) || {}).started || ''; return la.localeCompare(lb) || collator.compare(a.name || '', b.name || ''); });
+const workoutOrder = () => { const o = arr(settings.order); if (!o.length) return byDue(); const at = id => { const i = o.indexOf(id); return i < 0 ? 1e9 : i; }; return [...routines].sort((a, b) => at(a.id) - at(b.id) || collator.compare(a.name || '', b.name || '')); };
 const sortedWorkouts = () => [...workouts].sort((a, b) => (b.started || '').localeCompare(a.started || ''));
 const setCount = w => w.exercises.reduce((n, e) => n + e.sets.length, 0);
 const exerciseNames = () => { const seen = new Map(); for (const r of routines) for (const e of r.exercises) if (e.name) seen.set(fold(e.name), e.name); for (const w of workouts) for (const e of w.exercises) if (e.name) seen.set(fold(e.name), e.name); return [...seen.values()].sort(collator.compare); };
@@ -687,6 +697,79 @@ async function playPop(word) {
   el.className = ''; el.innerHTML = '';
 }
 
+/* ================================================================== hold and drag
+   Hold a row for a moment (or take its grip), then move it; it can land in any list of the same page. */
+function enableDrag(root, onDrop) {
+  let press = null, drag = null, raf = 0, dropped = 0;
+  const prevent = e => { if (drag) e.preventDefault(); };
+  root.addEventListener('click', e => { if (Date.now() - dropped < 500) { e.stopPropagation(); e.preventDefault(); } }, true);   // letting go is not a tap
+  root.addEventListener('pointerdown', e => {
+    const row = e.target.closest('.row[data-drag]');
+    if (!row || e.button || drag) return;
+    press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: 0 };
+    if (e.target.closest('.hd')) { e.preventDefault(); lift(); }   // the grip: no wait
+    else press.timer = setTimeout(lift, 300);                        // anywhere else: a short hold first
+  });
+  const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
+  root.addEventListener('pointermove', e => {
+    if (press && !drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) cancel();
+    if (drag && e.pointerId === drag.id) move(e);
+  });
+  root.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) drop(true); cancel(); });
+  root.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drop(false); cancel(); });
+  root.addEventListener('contextmenu', e => { if (e.target.closest('.row[data-drag]')) e.preventDefault(); });
+  function lift() {
+    const row = press.row, box = row.getBoundingClientRect();
+    drag = { row, id: press.id, dx: press.x - box.left, dy: press.y - box.top, x: press.x, y: press.y, from: (row.closest('[data-list]') || { dataset: {} }).dataset.list };
+    try { row.setPointerCapture(press.id); } catch { /* not a pointer we can hold */ }
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost'; ghost.style.width = box.width + 'px';
+    ghost.innerHTML = `<ul class="rows">${row.outerHTML}</ul>`;
+    document.body.append(ghost);
+    drag.ghost = ghost;
+    row.classList.add('lifting');
+    document.addEventListener('touchmove', prevent, { passive: false });
+    if (navigator.vibrate) navigator.vibrate(8);
+    press = null;
+    place(drag.x, drag.y);
+    raf = requestAnimationFrame(scrollLoop);
+  }
+  function place(x, y) { drag.ghost.style.left = (x - drag.dx) + 'px'; drag.ghost.style.top = (y - drag.dy) + 'px'; }
+  function move(e) {
+    drag.x = e.clientX; drag.y = e.clientY;
+    place(e.clientX, e.clientY);
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el || !root.contains(el)) return;
+    const over = el.closest('.row[data-drag]');
+    if (over && over !== drag.row) {
+      const b = over.getBoundingClientRect();
+      if (e.clientY < b.top + b.height / 2) over.before(drag.row); else over.after(drag.row);
+      return;
+    }
+    const sec = el.closest('[data-list]'), list = el.closest('.rows') || (sec && $('.rows', sec));
+    if (list && !list.contains(drag.row)) {   // over a day's heading or an empty day: join that day
+      const b = list.getBoundingClientRect();
+      if (e.clientY < b.top + b.height / 2) list.prepend(drag.row); else list.append(drag.row);
+    }
+  }
+  function scrollLoop() {   // the list scrolls when the row is held near the top or bottom edge
+    if (!drag) return;
+    const b = viewEl.getBoundingClientRect(), edge = 70;
+    if (drag.y < b.top + edge) viewEl.scrollTop -= Math.ceil((b.top + edge - drag.y) / 6);
+    else if (drag.y > b.bottom - edge) viewEl.scrollTop += Math.ceil((drag.y - (b.bottom - edge)) / 6);
+    raf = requestAnimationFrame(scrollLoop);
+  }
+  function drop(keep) {
+    cancelAnimationFrame(raf);
+    const row = drag.row, from = drag.from;
+    drag.ghost.remove();
+    row.classList.remove('lifting');
+    document.removeEventListener('touchmove', prevent);
+    drag = null; dropped = Date.now();
+    if (keep) onDrop(row, from); else render(true);
+  }
+}
+
 /* ================================================================== screens */
 const VIEWS = {
 
@@ -708,15 +791,19 @@ const VIEWS = {
 
   /* ---------------- Workout tab: pick a routine */
   home() {
-    const list = byDue();
+    const list = workoutOrder();
     viewEl.innerHTML = `<section class="start">
       <div class="top"><h1 class="lead">${list.length ? 'Start a workout' : 'No routines yet'}</h1>${list.length ? '' : '<p class="help" style="margin-top:10px">Set up a routine first: the exercises you do and how many sets of each.</p>'}</div>
-      ${list.length ? `<ul class="list">${list.map(r => { const last = lastWorkoutOf(r.id); return `<li><button type="button" class="row" data-id="${esc(r.id)}"><span class="tx"><span class="t">${esc(r.name)}</span><span class="s">${plural(r.exercises.length, 'exercise', 'exercises')} · ${esc(ago(last && last.started))}</span></span><span class="r">Start</span></button></li>`; }).join('')}</ul>`
+      ${list.length ? `<ul class="list rows" data-list="routines">${list.map(r => { const last = lastWorkoutOf(r.id); return `<li class="row" data-id="${esc(r.id)}" data-drag><button type="button" class="go" aria-label="Start ${esc(r.name)}"><span class="tx"><span class="t">${esc(r.name)}</span><span class="s">${plural(r.exercises.length, 'exercise', 'exercises')} · ${esc(ago(last && last.started))}</span></span><span class="r">Start</span></button><span class="hd" aria-hidden="true">${ICON.grip}</span></li>`; }).join('')}</ul>`
         : `<div class="note"><button type="button" class="primary" id="first">Create a routine</button>${workouts.length ? '' : `<div class="restore"><p class="help">Already use ${APP} on your iPhone? Back up there (History, the three dots) and save the two spreadsheets to OneDrive, then bring them in here.</p><label class="quiet" for="pick">Restore from a backup</label></div>`}</div>`}
     </section>`;
     const first = $('#first');
     if (first) first.addEventListener('click', () => { state.tab = 'routines'; render(); newRoutine(); });
-    $$('.row', viewEl).forEach(b => b.addEventListener('click', () => { const r = routineById(b.dataset.id); if (r) startWorkout(r); }));
+    const start = $('.start');
+    start.addEventListener('click', e => { const row = e.target.closest('.row'); if (row && !e.target.closest('.hd')) { const r = routineById(row.dataset.id); if (r) startWorkout(r); } });
+    enableDrag(start, () => {   // the list, top to bottom, is the order from now on
+      settings.order = $$('.row', start).map(r => r.dataset.id); saveSettings(); render();
+    });
   },
 
   /* ---------------- the workout in progress */
