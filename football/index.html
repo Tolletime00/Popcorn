@@ -151,10 +151,10 @@ select.field{font-weight:500;letter-spacing:.04em}
 /* ---------- Power Rankings */
 .stick{position:sticky;top:0;z-index:3;background:var(--bg)}
 .stick .status{padding-top:6px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 32px 28px repeat(3,40px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 44px 24px repeat(3,38px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
 .cols span{overflow:hidden;white-space:nowrap}
 .cols span:first-child{text-align:left}
-.cols .ov{grid-column:span 2;text-align:center}
+.cols .ov{grid-column:span 2;text-align:left;padding-left:2px}
 .tier .sec{padding-top:14px}
 .tier .sec .nm{font-size:16px;font-weight:500;padding:1px 10px;border-radius:12px;background:var(--fill)}
 .tier .sec .nm.up{background:var(--g1)}.tier .sec .nm.dn{background:var(--r1)}
@@ -164,15 +164,15 @@ body.dragging .tier.spare{display:block}
 .rows:empty{min-height:18px}
 .row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 40px;align-items:center;column-gap:8px;padding:6px 6px 6px 20px;min-height:54px;background:var(--bg)}
 .row.lifting{opacity:.25}
-.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 32px 28px repeat(3,40px);column-gap:4px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
+.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 44px 24px repeat(3,38px);column-gap:4px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
 .row .tx span{overflow:hidden;white-space:nowrap}
-.row .nm{grid-row:span 2;align-self:center;display:flex;align-items:baseline;gap:8px;text-align:left}
+.row .nm{grid-row:span 2;align-self:center;display:flex;align-items:baseline;gap:6px;text-align:left}
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .row .rc{font-size:13px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
 .row .tx .v{font-size:18px;font-weight:500}
 .row .tx b{font-size:20px;font-weight:600;color:var(--ink)}
-.row .tx .all{grid-row:span 2;align-self:center;font-size:17px;font-weight:600;color:var(--ink)}   /* the team as a whole, between the offense and defense rows, the size of the team's name */
+.row .tx .all{grid-row:span 2;align-self:center;padding:0 8px;font-size:17px;font-weight:600;color:var(--ink)}   /* the team as a whole, between the offense and defense rows, the size of the team's name */
 .row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
