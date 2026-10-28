@@ -199,6 +199,32 @@ li.row.lifting{opacity:.25}
 #toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));z-index:40;width:max-content;max-width:calc(100% - 48px);padding:10px 18px;border-radius:21px;background:var(--ink);color:var(--bg);font-size:15px;line-height:1.3;text-align:center;opacity:0;transform:translate(-50%,-10px);transition:opacity .2s,transform .2s;pointer-events:none}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 
+/* ---------- first run: bring the numbers over from the iPhone */
+.welcome{margin:10px 20px 6px;padding:22px 22px 18px;border-radius:20px;background:var(--fill);display:grid;gap:12px}
+.welcome .lead{font-size:24px;text-align:left}
+.welcome .help{text-align:left;margin:0}
+label.primary{display:grid;place-items:center;cursor:pointer}
+.welcome .quiet{justify-self:start;padding-left:0}
+
+/* ---------- iPad: a sidebar in place of the tab bar, the screens in a column beside it, and dialogs in place of bottom sheets */
+@media (min-width:700px) and (min-height:500px){
+  #app{max-width:none;grid-template-columns:236px minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding-top:0}
+  #tabs{grid-area:1/1;display:flex;flex-direction:column;gap:2px;padding:calc(22px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));border-top:0;border-right:1px solid var(--line);background:color-mix(in srgb,var(--ink) 5%,var(--bg))}
+  #tabs::before{content:attr(data-app);display:block;padding:4px 12px 18px;font-size:26px;font-weight:500;letter-spacing:-.005em;color:var(--ink)}
+  #tabs button{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;justify-items:start;gap:12px;padding:9px 12px;border-radius:12px;font-size:16px;letter-spacing:0;color:var(--ink-2)}
+  #tabs button:active{background:var(--line)}
+  #tabs [aria-current=page]{background:var(--fill);color:var(--ink);font-weight:500}
+  #tabs svg{width:24px;height:24px}
+  #view{grid-area:1/2;padding-top:env(safe-area-inset-top)}
+  #view>section{max-width:760px;margin:0 auto}
+  #sheets{position:fixed;inset:0;z-index:20;display:grid;align-content:start;justify-items:center;padding:max(48px,9vh) 24px 24px;pointer-events:none}
+  #sheets>*{pointer-events:auto}
+  .sheet{position:relative;left:auto;right:auto;bottom:auto;width:min(500px,100%);max-height:calc(100vh - max(48px,9vh) - 24px);margin:0;border-radius:24px;padding:6px 0 14px;box-shadow:0 24px 80px rgba(0,0,0,.28);opacity:0;transform:translateY(14px) scale(.98);transition:transform .22s cubic-bezier(.2,.85,.25,1),opacity .18s}
+  .open>.sheet{opacity:1;transform:none}
+  #toast{left:calc(50% + 118px)}
+  .welcome{margin:16px 20px 10px}
+}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
@@ -207,7 +233,7 @@ li.row.lifting{opacity:.25}
 <body>
 <div id="app">
   <main id="view"></main>
-  <nav id="tabs" aria-label="Sections">
+  <nav id="tabs" aria-label="Sections" data-app="Budget">
     <button type="button" data-tab="month"><svg viewBox="0 0 26 26" aria-hidden="true"><rect class="f" x="4" y="5.5" width="18" height="16" rx="3"/><path d="M4 10.5h18M9 3.5v4M17 3.5v4"/></svg><span>Month</span></button>
     <button type="button" data-tab="rec"><svg viewBox="0 0 26 26" aria-hidden="true"><path class="f" d="M5 13a8 8 0 0 1 13.5-5.8"/><path d="M18.5 3.6v3.6h-3.6"/><path class="f" d="M21 13a8 8 0 0 1-13.5 5.8"/><path d="M7.5 22.4v-3.6h3.6"/></svg><span>Recurring</span></button>
     <button type="button" data-tab="acct"><svg viewBox="0 0 26 26" aria-hidden="true"><rect class="f" x="3.5" y="6" width="19" height="14" rx="3"/><path d="M3.5 11h19M7.5 16h4"/></svg><span>Accounts</span></button>
@@ -266,7 +292,7 @@ const ICON = {
 };
 
 /* ================================================================== storage */
-const K = { items: 'budget.recurring', sections: 'budget.sections', actuals: 'budget.actuals', expenses: 'budget.expenses', savings: 'budget.savings', meta: 'budget.meta', skip: 'budget.skipInstall', seeded: 'budget.seeded' };
+const K = { items: 'budget.recurring', sections: 'budget.sections', actuals: 'budget.actuals', expenses: 'budget.expenses', savings: 'budget.savings', meta: 'budget.meta', skip: 'budget.skipInstall', seeded: 'budget.seeded', welcomed: 'budget.welcomed' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
@@ -279,7 +305,7 @@ let savings = arr(LS.get(K.savings, []));     // { ym, amount }
 let meta = Object.assign({ unsaved: 0, lastBackup: null }, LS.get(K.meta, {}));
 function persist(changes = 0) {
   const ok = LS.set(K.items, items) && LS.set(K.sections, sections) && LS.set(K.actuals, actuals) && LS.set(K.expenses, expenses) && LS.set(K.savings, savings);
-  if (!ok) toast('Couldn’t save on this phone. Its storage may be full.');
+  if (!ok) toast('Couldn’t save on this device. Its storage may be full.');
   if (changes) { meta.unsaved = (meta.unsaved || 0) + changes; LS.set(K.meta, meta); }
 }
 function tidy() {   // "(pending)" written at the end of a note, the spreadsheet's way, becomes the pending status
@@ -499,8 +525,10 @@ const VIEWS = {
   month() {
     const m = month(state.ym);
     const line = (t, v, { sub = '', cls = '', tab = '', vcls = '' } = {}) => `<${tab ? 'button type="button"' : 'div'} class="line ${cls}" ${tab ? `data-go="${tab}"` : ''}><span><span class="t">${esc(t)}</span>${sub ? `<span class="s">${esc(sub)}</span>` : ''}</span><span class="v num ${vcls}">${esc(v)}</span></${tab ? 'button' : 'div'}>`;
+    const fresh = !items.length && !expenses.length && !Object.keys(actuals).length && !LS.get(K.welcomed, false);   // nothing entered yet: offer the iPhone's backup
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>Month</h2><span></span></header>
+      ${fresh ? `<div class="welcome"><p class="lead">Already use ${APP} on your iPhone?</p><p class="help">Back up there (the three dots, then Back up) and save ${BACKUP_NAME} to OneDrive. Restore it here and everything comes across.</p><label class="primary" for="pick">Restore from a backup</label><button type="button" class="quiet" id="fresh">Start fresh instead</button></div>` : ''}
       ${monthBar()}
       <div class="lines">
         ${line('Monthly limit', money(m.limit), { sub: items.length ? `Income ${money(m.income)} − recurring ${money(m.expense)}` : 'Set up the Recurring tab first', tab: 'rec' })}
@@ -510,6 +538,7 @@ const VIEWS = {
       </div>
     </section>`;
     $('#more').addEventListener('click', moreSheet); wireMonthBar();
+    const skipWelcome = $('#fresh'); if (skipWelcome) skipWelcome.addEventListener('click', () => { LS.set(K.welcomed, true); render(); });
     $('.lines').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const [tab, acct] = b.dataset.go.split(':'); if (acct) state.acct = acct; goTab(tab); });
   },
 
@@ -751,7 +780,7 @@ function moreSheet() {
   openSheet(`${head(APP)}
     <button type="button" class="item" id="backup"><span class="l">Back up</span><span class="s">${esc(status)}. Everything in one file for OneDrive.</span></button>
     <label class="item" for="pick"><span class="l">Restore from a backup</span><span class="s">Pick ${BACKUP_NAME} from OneDrive</span></label>
-    <p class="about">Everything in ${APP} stays on this phone. The monthly limit is income less recurring expenses; the balance is the limit, plus whatever the actuals came in under the plan (or less what they ran over), less what went on the accounts.</p>`, el => {
+    <p class="about">Everything in ${APP} stays on this device: an iPhone and an iPad each keep their own copy, and the backup file is how the numbers move between them. The monthly limit is income less recurring expenses; the balance is the limit, plus whatever the actuals came in under the plan (or less what they ran over), less what went on the accounts.</p>`, el => {
     $('#backup', el).addEventListener('click', backup);
   });
 }

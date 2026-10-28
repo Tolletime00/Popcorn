@@ -1,6 +1,6 @@
 # Budget
 
-A monthly budget on an iPhone: recurring bills and income, card spending by account, and what each month left over.
+A monthly budget on an iPad or an iPhone: recurring bills and income, card spending by account, and what each month left over. On an iPad the four sections sit in a sidebar and the forms open as dialogs; on an iPhone they are the tabs along the bottom and sheets that slide up. Same app, same address, same backup file.
 
 - **Month:** one month at a time (arrows to move between months). The monthly limit, how far the recurring items ran over or under their estimates, what went on each account, and the balance.
 - **Recurring:** paychecks and bills with what you expect each to be, in sections you name. As the month goes on, tap an item and enter what it actually was.
@@ -18,7 +18,7 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 - **Each account** = the expenses on that account dated in the month, pending ones included, less any refunds.
 - **Balance** = monthly limit + actual recurring vs estimate − the accounts.
 
-Everything stays on the phone. The three dots back it all up to one file for OneDrive and restore from it.
+Everything stays on the device it was typed into. The three dots back it all up to one file for OneDrive and restore from it; that file is also how the numbers move from an iPhone to an iPad.
 
 ## How it is put together
 
@@ -29,11 +29,12 @@ Everything stays on the phone. The three dots back it all up to one file for One
 | `manifest.webmanifest` | The app's name and icon for the Home Screen |
 | `apple-touch-icon.png`, `icon-512.png` | The piggy bank icon |
 
-## Getting it back on a new phone
+## Moving it to an iPad (or a new iPhone)
 
 Nothing has to be rebuilt. The app is this folder's GitHub Pages address: `https://YOUR-USERNAME.github.io/Popcorn/budget/`.
 
-1. Open the address in Safari on the new iPhone.
-2. Tap Share, then Add to Home Screen. Keep "Open as Web App" on and tap Add.
-3. Open Budget from the Home Screen.
-4. Tap the three dots, choose "Restore from a backup" and pick `Budget backup.json` from OneDrive.
+1. On the iPhone: the three dots, Back up, and save `Budget backup.json` to OneDrive.
+2. On the iPad: open the address in Safari, tap Share, then Add to Home Screen. Keep "Open as Web App" on and tap Add.
+3. Open Budget from the Home Screen. It asks whether you already use Budget on an iPhone: tap Restore from a backup and pick `Budget backup.json` from OneDrive. (Later on, the same thing is under the three dots.)
+
+Each device keeps its own copy, so after the move keep entering on the one you restored to, or back up from one and restore on the other whenever you switch.
