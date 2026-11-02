@@ -147,6 +147,7 @@ li.row{grid-template-columns:minmax(0,1fr) 52px 86px;column-gap:10px;padding:0 2
 li.row .t{font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 li.row .d{font-size:13px;color:var(--ink-3);white-space:nowrap;text-align:right}
 li.row .a{font-size:16px;font-weight:500;white-space:nowrap;text-align:right}
+.sec.mo{padding-right:20px}   /* a month's total ends where the amounts under it end */
 .sec.sub{margin-top:10px;padding:0 8px 0 20px;align-items:center}   /* the Pending heading: small, its plus level with it */
 .sec.sub .nm{font-size:14px;font-weight:600;color:var(--ink-2)}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 20px 6px}
@@ -525,7 +526,7 @@ const VIEWS = {
     const rowHTML = e => `<li class="row" data-id="${esc(e.id)}"><span class="t">${esc(e.note || 'Expense')}</span><span class="d num">${esc(fmtDay(e.date))}</span><span class="a num${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span></li>`;
     let body = `<section data-group="pending"><div class="sec sub"><span class="nm">Pending</span><button type="button" class="plus" data-add="pending" aria-label="Add a pending charge">${ICON.plus}</button></div><ul class="rows">${pending.map(rowHTML).join('')}</ul></section>`;
     const months = [...new Set([thisMonth(), ...posted.map(e => e.date.slice(0, 7))])].sort().reverse();   // this month is always there, even empty
-    for (const m of months) body += `<section data-group="${m}"><div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div><ul class="rows">${posted.filter(e => e.date.slice(0, 7) === m).map(rowHTML).join('')}</ul></section>`;
+    for (const m of months) body += `<section data-group="${m}"><div class="sec mo"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div><ul class="rows">${posted.filter(e => e.date.slice(0, 7) === m).map(rowHTML).join('')}</ul></section>`;
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2 class="ac" style="--ac:var(--acct-${id})">${esc(name)}</h2><span></span></header>
       <div class="chips" role="tablist">${ACCOUNTS.map(([k, n]) => `<button type="button" role="tab" data-acct="${k}" aria-pressed="${k === id}" style="--ac:var(--acct-${k})">${esc(n)}</button>`).join('')}</div>
