@@ -140,9 +140,8 @@ button.line:active{background:var(--fill)}
 .row .t{display:block;font-size:17px;line-height:1.25}
 .row .s{display:block;font-size:13px;color:var(--ink-3);line-height:1.3}
 .row .amt{display:grid;justify-items:end;line-height:1.2}
-.row .amt .a{font-size:17px;font-weight:500;white-space:nowrap}
-.row .amt .e{font-size:13px;color:var(--ink-3);white-space:nowrap}
-.row .amt .a.open{color:var(--ink-3);font-weight:400}
+.row .amt .a{font-size:17px;font-weight:600;color:var(--ink);white-space:nowrap}
+.row .amt .a.open{color:var(--ink-3);font-weight:400;font-style:italic}   /* still an estimate */
 ul.rows{list-style:none;margin:0;padding:0 0 4px}
 li.row{grid-template-columns:minmax(0,1fr) auto auto;column-gap:12px;padding:0 20px;min-height:34px;cursor:pointer}   /* name · date · amount, slim */
 li.row .t{font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -493,8 +492,8 @@ const VIEWS = {
   rec() {
     const r = recurring(state.ym);
     const rowHTML = it => { const a = actualOf(state.ym, it.id); const d = a == null ? null : (it.kind === 'income' ? a - it.amount : it.amount - a); return `<button type="button" class="row" data-id="${esc(it.id)}">
-      <span><span class="t">${esc(it.name)}</span><span class="s">${it.kind === 'income' ? 'Income' : 'Expense'}${a != null && Math.abs(d) > 0.004 ? ` · <b class="${tone(d)}">${d > 0 ? '+' : '−'}${money(Math.abs(d))}</b> vs estimate` : ''}</span></span>
-      <span class="amt num"><span class="a${a == null ? ' open' : ''}">${a == null ? money(it.amount) : money(a)}</span>${a == null ? '<span class="e">estimate</span>' : ''}</span>
+      <span><span class="t">${esc(it.name)}</span>${a != null && Math.abs(d) > 0.004 ? `<span class="s"><b class="${tone(d)}">${d > 0 ? '+' : '−'}${money(Math.abs(d))}</b> vs estimate</span>` : ''}</span>
+      <span class="amt num"><span class="a${a == null ? ' open' : ''}">${a == null ? money(it.amount) : money(a)}</span></span>
     </button>`; };
     const group = (sid, name) => { const list = items.filter(x => (x.section || null) === sid).sort(byOrder); if (!list.length && sid === null) return ''; const sum = list.reduce((s, x) => s + (x.kind === 'income' ? 1 : -1) * (x.amount || 0), 0); return `<section>
       <div class="sec">${sid ? `<button type="button" class="secname" data-section="${esc(sid)}">${esc(name)}</button>` : '<span class="nm">Other</span>'}${list.length ? `<span class="sum num">${esc(money(sum))}</span>` : ''}<button type="button" class="plus" data-add="${esc(sid || '')}" aria-label="Add to ${esc(name)}">${ICON.plus}</button></div>
