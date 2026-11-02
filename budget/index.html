@@ -144,10 +144,14 @@ button.line:active{background:var(--fill)}
 .row .amt .a.open{color:var(--ink-3);font-weight:400;font-style:italic}   /* still an estimate */
 ul.rows{list-style:none;margin:0;padding:0 0 4px}
 li.row{grid-template-columns:minmax(0,1fr) 52px 86px;column-gap:10px;padding:0 20px;min-height:34px;cursor:pointer}   /* name · date · amount, slim; fixed columns so the dates line up whatever the amounts' widths */
+li.row .t,li.row .d,li.row .a{color:var(--ink-3)}   /* the expenses sit back in light grey; the month above them is in full ink */
 li.row .t{font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-li.row .d{font-size:13px;color:var(--ink-3);white-space:nowrap;text-align:right}
+li.row .d{font-size:13px;white-space:nowrap;text-align:right}
 li.row .a{font-size:16px;font-weight:500;white-space:nowrap;text-align:right}
+li.row .a.up{color:var(--up)}
 .sec.mo{padding-right:20px}   /* a month's total ends where the amounts under it end */
+.sec.mo .nm{font-size:20px;font-weight:600}
+.sec.mo .sum{font-size:18px;font-weight:500;color:var(--ink)}
 .sec.sub{margin-top:10px;padding:0 8px 0 20px;align-items:center}   /* the Pending heading: small, its plus level with it */
 .sec.sub .nm{font-size:14px;font-weight:600;color:var(--ink-2)}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 20px 6px}
