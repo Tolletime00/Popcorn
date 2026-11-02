@@ -7,7 +7,7 @@ A monthly budget on an iPad or an iPhone: recurring bills and income, card spend
 - **Accounts:** BofA, Amex, Marriott, Capital One, Chase and Amazon, each the same screen, each its own colour. A Pending section comes first, for charges the card still shows as pending; then each month with its total and its expenses in slim rows, newest first, each with its date beside it. The + on Pending adds a pending charge; the Add expense button at the top asks for the date. An entry is an Expense or a Gain (a refund, say). Tap one to change it, switch it between Pending and Posted, or delete it. A pending charge counts into its month like any other.
 
 Amounts are typed with the decimal already in place: 4230 is $42.30. The screens show whole dollars (42.30 shows as $42), but the cents are kept and go into every total.
-- **Months:** what each month left over, as a list with its total at the top. Add a month by hand, or tap the current month's line to save the balance the app worked out.
+- **Months:** what each month left over, as a list with its total at the top. Add a month by hand, or tap the current month's line to save what the app worked out: the Summary tab's balance with its Savings row added back, since money put away is money the month left over too.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
 

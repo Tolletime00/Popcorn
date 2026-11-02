@@ -143,10 +143,10 @@ button.line:active{background:var(--fill)}
 .row .amt .a{font-size:17px;font-weight:600;color:var(--ink);white-space:nowrap}
 .row .amt .a.open{color:var(--ink-3);font-weight:400;font-style:italic}   /* still an estimate */
 ul.rows{list-style:none;margin:0;padding:0 0 4px}
-li.row{grid-template-columns:minmax(0,1fr) auto auto;column-gap:12px;padding:0 20px;min-height:34px;cursor:pointer}   /* name · date · amount, slim */
+li.row{grid-template-columns:minmax(0,1fr) 52px 86px;column-gap:10px;padding:0 20px;min-height:34px;cursor:pointer}   /* name · date · amount, slim; fixed columns so the dates line up whatever the amounts' widths */
 li.row .t{font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-li.row .d{font-size:13px;color:var(--ink-3);white-space:nowrap;min-width:50px;text-align:right}
-li.row .a{font-size:16px;font-weight:500;white-space:nowrap;min-width:60px;text-align:right}
+li.row .d{font-size:13px;color:var(--ink-3);white-space:nowrap;text-align:right}
+li.row .a{font-size:16px;font-weight:500;white-space:nowrap;text-align:right}
 .sec.sub{margin-top:10px;padding:0 8px 0 20px;align-items:center}   /* the Pending heading: small, its plus level with it */
 .sec.sub .nm{font-size:14px;font-weight:600;color:var(--ink-2)}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 20px 6px}
@@ -347,6 +347,7 @@ function month(ym) {
   return { ...r, cards, cardsTotal, aside: putAway, balance: round2(r.limit + r.delta - cardsTotal - putAway) };
 }
 const asideOf = ym => Math.max(0, +aside[ym] || 0);
+const leftOver = ym => round2(month(ym).balance + asideOf(ym));   // what the month really left over: the balance, with the savings row added back
 const hasData = ym => items.length > 0 || expenses.some(e => e.date.slice(0, 7) === ym) || !!actuals[ym] || !!aside[ym];
 // Spending the limit (less what is put away) evenly, a day at a time, so the month ends on exactly zero: what a day gets, and what should be left today.
 const daysIn = ym => new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
@@ -545,12 +546,12 @@ const VIEWS = {
   sav() {
     const list = savings.slice().sort((a, b) => b.ym.localeCompare(a.ym));
     const total = round2(list.reduce((s, x) => s + (x.amount || 0), 0));
-    const live = !savings.some(x => x.ym === state.ym) && hasData(state.ym) ? month(state.ym).balance : null;
+    const live = !savings.some(x => x.ym === state.ym) && hasData(state.ym) ? leftOver(state.ym) : null;
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2>Months</h2><button type="button" class="icon-btn" id="add" aria-label="Add a month">${ICON.plus}</button></header>
       <div class="pot"><p class="big num ${tone(total)}">${esc(money(total))}</p><p class="k">${plural(list.length, 'month', 'months')} put together</p></div>
       <div class="lines">
-        ${live != null ? `<button type="button" class="sav live" data-live="${state.ym}"><span><span class="m">${ymShort(state.ym)}</span><span class="y">${esc(ymText(state.ym).slice(-4))} so far · tap to save</span></span><span class="v num ${tone(live)}">${esc(money(live))}</span></button>` : ''}
+        ${live != null ? `<button type="button" class="sav live" data-live="${state.ym}"><span><span class="m">${ymShort(state.ym)}</span><span class="y">${esc(ymText(state.ym).slice(-4))} so far${asideOf(state.ym) ? ', savings included' : ''} · tap to save</span></span><span class="v num ${tone(live)}">${esc(money(live))}</span></button>` : ''}
         ${list.map(x => `<button type="button" class="sav" data-ym="${x.ym}"><span><span class="m">${ymShort(x.ym)}</span><span class="y">${x.ym.slice(0, 4)}</span></span><span class="v num ${tone(x.amount)}">${esc(money(x.amount))}</span></button>`).join('')}
       </div>
     </section>`;
@@ -670,12 +671,12 @@ function asideSheet() {   // the Savings row: how much of this month goes into s
 function savingsSheet(ym, liveYm) {
   const s = ym ? savings.find(x => x.ym === ym) : null;
   const start = s ? s.ym : liveYm || state.ym;
-  const guess = !s && hasData(start) ? month(start).balance : null;
+  const guess = !s && hasData(start) ? leftOver(start) : null;
   openSheet(`${head(s ? `${ymText(s.ym)}` : 'Add a month')}<form class="form" id="f" autocomplete="off">
       <input class="field" type="month" data-k="ym" value="${esc(start)}" aria-label="Month">
       <label class="lb">What the month left over</label>
       ${moneyHTML('amount', s ? s.amount : guess, { signed: true })}
-      ${!s && guess != null ? `<p class="foot" style="padding:0 2px">Filled in from the Summary tab’s balance for ${esc(ymText(start))}. Change it if you like.</p>` : ''}
+      ${!s && guess != null ? `<p class="foot" style="padding:0 2px">Filled in from the Summary tab for ${esc(ymText(start))}: the balance${asideOf(start) ? ' plus the savings row' : ''}. Change it if you like.</p>` : ''}
       <button type="submit" class="primary">${s ? 'Save' : 'Add'}</button>
     </form>
     ${s ? '<div class="actions"><button type="button" class="item danger" id="del"><span class="l">Delete this month</span></button></div>' : ''}`, el => {
