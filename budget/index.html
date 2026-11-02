@@ -143,15 +143,13 @@ button.line:active{background:var(--fill)}
 .row .amt .a{font-size:17px;font-weight:500;white-space:nowrap}
 .row .amt .e{font-size:13px;color:var(--ink-3);white-space:nowrap}
 .row .amt .a.open{color:var(--ink-3);font-weight:400}
-ul.rows{list-style:none;margin:0;padding:0}
-li.row{grid-template-columns:minmax(0,1fr) auto 40px;padding:2px 6px 2px 20px;min-height:40px;cursor:pointer}
-li.row .hd{width:40px;height:36px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
-li.row .hd svg{width:20px;height:20px}
-li.row.lifting{opacity:.25}
-.ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96;transform:scale(1.02)}
-.ghost .row{background:transparent}
-.sec.day{margin-top:14px;padding:0 8px 0 20px;align-items:center}   /* a day's name level with its plus; the space above it sets the day apart */
-.sec.day .nm{font-size:14px;font-weight:600;color:var(--ink-2)}
+ul.rows{list-style:none;margin:0;padding:0 0 4px}
+li.row{grid-template-columns:minmax(0,1fr) auto auto;column-gap:12px;padding:0 20px;min-height:34px;cursor:pointer}   /* name · date · amount, slim */
+li.row .t{font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li.row .d{font-size:13px;color:var(--ink-3);white-space:nowrap;min-width:50px;text-align:right}
+li.row .a{font-size:16px;font-weight:500;white-space:nowrap;min-width:60px;text-align:right}
+.sec.sub{margin-top:10px;padding:0 8px 0 20px;align-items:center}   /* the Pending heading: small, its plus level with it */
+.sec.sub .nm{font-size:14px;font-weight:600;color:var(--ink-2)}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 20px 6px}
 .summary .box{display:grid;gap:2px;justify-items:center;text-align:center;padding:10px 10px 8px;border-radius:14px;background:var(--fill)}
 .rec .sec .nm,.rec button.secname{font-size:22px;font-weight:600;letter-spacing:-.005em}
@@ -289,13 +287,10 @@ const validYm = s => /^\d{4}-\d{2}$/.test(String(s || '')) && +s.slice(5, 7) >= 
 const validDay = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(new Date(s + 'T12:00:00'));
 const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 const fmtDay = iso => dayFmt.format(new Date(iso + 'T12:00:00'));
-const wdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-const fmtWday = iso => wdayFmt.format(new Date(iso + 'T12:00:00'));
 
 const ICON = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   more: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
-  grip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10M7 15h10"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4.5 7.5 12l7.5 7.5"/></svg>',
   fwd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5l7.5 7.5L9 19.5"/></svg>',
@@ -450,79 +445,6 @@ const monthBar = () => `<div class="mbar"><button type="button" class="icon-btn"
 const wireMonthBar = () => { $('#prevM').addEventListener('click', () => { state.ym = shiftYm(state.ym, -1); render(); }); $('#nextM').addEventListener('click', () => { state.ym = shiftYm(state.ym, 1); render(); }); };
 const tone = n => n > 0.004 ? 'up' : n < -0.004 ? 'down' : '';
 
-/* ================================================================== hold and drag
-   Hold a row for a moment (or take its grip), then move it; it can land in any list of the same page. */
-function enableDrag(root, onDrop) {
-  let press = null, drag = null, raf = 0, dropped = 0;
-  const prevent = e => { if (drag) e.preventDefault(); };
-  root.addEventListener('click', e => { if (Date.now() - dropped < 500) { e.stopPropagation(); e.preventDefault(); } }, true);   // letting go is not a tap
-  root.addEventListener('pointerdown', e => {
-    const row = e.target.closest('.row[data-drag]');
-    if (!row || e.button || drag) return;
-    press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: 0 };
-    if (e.target.closest('.hd')) { e.preventDefault(); lift(); }   // the grip: no wait
-    else press.timer = setTimeout(lift, 300);                        // anywhere else: a short hold first
-  });
-  const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
-  root.addEventListener('pointermove', e => {
-    if (press && !drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) cancel();
-    if (drag && e.pointerId === drag.id) move(e);
-  });
-  root.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) drop(true); cancel(); });
-  root.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drop(false); cancel(); });
-  root.addEventListener('contextmenu', e => { if (e.target.closest('.row[data-drag]')) e.preventDefault(); });
-  function lift() {
-    const row = press.row, box = row.getBoundingClientRect();
-    drag = { row, id: press.id, dx: press.x - box.left, dy: press.y - box.top, x: press.x, y: press.y, from: (row.closest('[data-list]') || { dataset: {} }).dataset.list };
-    try { row.setPointerCapture(press.id); } catch { /* not a pointer we can hold */ }
-    const ghost = document.createElement('div');
-    ghost.className = 'ghost'; ghost.style.width = box.width + 'px';
-    ghost.innerHTML = `<ul class="rows">${row.outerHTML}</ul>`;
-    document.body.append(ghost);
-    drag.ghost = ghost;
-    row.classList.add('lifting');
-    document.addEventListener('touchmove', prevent, { passive: false });
-    if (navigator.vibrate) navigator.vibrate(8);
-    press = null;
-    place(drag.x, drag.y);
-    raf = requestAnimationFrame(scrollLoop);
-  }
-  function place(x, y) { drag.ghost.style.left = (x - drag.dx) + 'px'; drag.ghost.style.top = (y - drag.dy) + 'px'; }
-  function move(e) {
-    drag.x = e.clientX; drag.y = e.clientY;
-    place(e.clientX, e.clientY);
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    if (!el || !root.contains(el)) return;
-    const over = el.closest('.row[data-drag]');
-    if (over && over !== drag.row) {
-      const b = over.getBoundingClientRect();
-      if (e.clientY < b.top + b.height / 2) over.before(drag.row); else over.after(drag.row);
-      return;
-    }
-    const sec = el.closest('[data-list]'), list = el.closest('.rows') || (sec && $('.rows', sec));
-    if (list && !list.contains(drag.row)) {   // over a day's heading or an empty day: join that day
-      const b = list.getBoundingClientRect();
-      if (e.clientY < b.top + b.height / 2) list.prepend(drag.row); else list.append(drag.row);
-    }
-  }
-  function scrollLoop() {   // the list scrolls when the row is held near the top or bottom edge
-    if (!drag) return;
-    const b = viewEl.getBoundingClientRect(), edge = 70;
-    if (drag.y < b.top + edge) viewEl.scrollTop -= Math.ceil((b.top + edge - drag.y) / 6);
-    else if (drag.y > b.bottom - edge) viewEl.scrollTop += Math.ceil((drag.y - (b.bottom - edge)) / 6);
-    raf = requestAnimationFrame(scrollLoop);
-  }
-  function drop(keep) {
-    cancelAnimationFrame(raf);
-    const row = drag.row, from = drag.from;
-    drag.ghost.remove();
-    row.classList.remove('lifting');
-    document.removeEventListener('touchmove', prevent);
-    drag = null; dropped = Date.now();
-    if (keep) onDrop(row, from); else render(true);
-  }
-}
-
 /* ================================================================== screens */
 const VIEWS = {
 
@@ -595,27 +517,15 @@ const VIEWS = {
     });
   },
 
-  /* ---------------- Accounts: every expense, by card: the pending ones first, then every day under its month */
+  /* ---------------- Accounts: every expense, by card: the pending ones first, then each month's list, newest first, a date beside each */
   acct() {
-    const id = state.acct, name = ACCT[id], today = todayISO();
-    const ord = (a, b) => (a.order ?? 0) - (b.order ?? 0) || (b.added || '').localeCompare(a.added || '');
-    const mine = expenses.filter(e => e.account === id), pending = mine.filter(e => e.pending).sort(ord), byDay = {};
-    for (const e of mine) if (!e.pending) (byDay[e.date] = byDay[e.date] || []).push(e);
-    for (const l of Object.values(byDay)) l.sort(ord);
-    const days = new Set(Object.keys(byDay));
-    for (let d = +today.slice(8, 10); d >= 1; d--) days.add(today.slice(0, 8) + pad(d));   // this month so far, every day, with something on it or not
-    const rowHTML = e => {
-      const s = [e.pending ? fmtDay(e.date) : '', e.amount < 0 ? 'gain' : ''].filter(Boolean).join(' · ');
-      return `<li class="row" data-id="${esc(e.id)}" data-drag><span><span class="t">${esc(e.note || 'Expense')}</span>${s ? `<span class="s">${esc(s)}</span>` : ''}</span><span class="amt num"><span class="a${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span></span><span class="hd" aria-hidden="true">${ICON.grip}</span></li>`;
-    };
-    // a line across for each day (and for Pending), with its name and a plus of its own
-    const dayHTML = (key, label, rows, aria) => `<section class="dayl" data-list="${key}"><div class="sec day"><span class="nm">${esc(label)}</span><button type="button" class="plus" data-add="${key}" aria-label="${esc(aria)}">${ICON.plus}</button></div><ul class="rows">${rows.map(rowHTML).join('')}</ul></section>`;
-    let body = dayHTML('pending', 'Pending', pending, 'Add a pending charge'), ym = '';
-    for (const day of [...days].sort().reverse()) {
-      const m = day.slice(0, 7);
-      if (m !== ym) { ym = m; body += `<div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div>`; }
-      body += dayHTML(day, fmtWday(day), byDay[day] || [], `Add an expense on ${fmtWday(day)}`);
-    }
+    const id = state.acct, name = ACCT[id];
+    const newest = (a, b) => b.date.localeCompare(a.date) || (a.order ?? 0) - (b.order ?? 0) || (b.added || '').localeCompare(a.added || '');
+    const mine = expenses.filter(e => e.account === id), pending = mine.filter(e => e.pending).sort(newest), posted = mine.filter(e => !e.pending).sort(newest);
+    const rowHTML = e => `<li class="row" data-id="${esc(e.id)}"><span class="t">${esc(e.note || 'Expense')}</span><span class="d num">${esc(fmtDay(e.date))}</span><span class="a num${e.amount < 0 ? ' up' : ''}">${esc(money(e.amount))}</span></li>`;
+    let body = `<section data-group="pending"><div class="sec sub"><span class="nm">Pending</span><button type="button" class="plus" data-add="pending" aria-label="Add a pending charge">${ICON.plus}</button></div><ul class="rows">${pending.map(rowHTML).join('')}</ul></section>`;
+    const months = [...new Set([thisMonth(), ...posted.map(e => e.date.slice(0, 7))])].sort().reverse();   // this month is always there, even empty
+    for (const m of months) body += `<section data-group="${m}"><div class="sec"><span class="nm">${esc(ymText(m))}</span><span class="sum num">${esc(money(spent(id, m)))}</span></div><ul class="rows">${posted.filter(e => e.date.slice(0, 7) === m).map(rowHTML).join('')}</ul></section>`;
     viewEl.innerHTML = `<section class="page">
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}${meta.unsaved ? '<i class="dot"></i>' : ''}</button><h2 class="ac" style="--ac:var(--acct-${id})">${esc(name)}</h2><span></span></header>
       <div class="chips" role="tablist">${ACCOUNTS.map(([k, n]) => `<button type="button" role="tab" data-acct="${k}" aria-pressed="${k === id}" style="--ac:var(--acct-${k})">${esc(n)}</button>`).join('')}</div>
@@ -626,21 +536,9 @@ const VIEWS = {
     $('.chips').addEventListener('click', e => { const b = e.target.closest('[data-acct]'); if (b) { state.acct = b.dataset.acct; state.scroll.acct = 0; render(); } });
     const sel = $('.chips [aria-pressed=true]'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ inline: 'center', block: 'nearest' });
     $('#add').addEventListener('click', () => expenseSheet(null));
-    const body2 = $('.page');
-    body2.addEventListener('click', e => {
-      const add = e.target.closest('[data-add]'); if (add) return add.dataset.add === 'pending' ? expenseSheet(null, null, true) : expenseSheet(null, add.dataset.add);
-      const row = e.target.closest('.row'); if (row && !e.target.closest('.hd')) expenseSheet(row.dataset.id);
-    });
-    enableDrag(body2, (row, fromKey) => {   // a dropped expense takes the day it landed in (or goes pending); both lists keep their new order
-      const toKey = (row.closest('[data-list]') || { dataset: {} }).dataset.list; if (!toKey) { render(true); return; }
-      for (const sec of $$('[data-list]', body2)) {
-        const key = sec.dataset.list; if (key !== toKey && key !== fromKey) continue;
-        $$('.row', sec).forEach((r, i) => {
-          const x = expenses.find(e => e.id === r.dataset.id); if (!x) return;
-          x.order = i; if (key === 'pending') x.pending = true; else { delete x.pending; x.date = key; }
-        });
-      }
-      persist(1); render(true);
+    $('.page').addEventListener('click', e => {
+      if (e.target.closest('[data-add]')) return expenseSheet(null, null, true);
+      const row = e.target.closest('.row'); if (row) expenseSheet(row.dataset.id);
     });
   },
 
