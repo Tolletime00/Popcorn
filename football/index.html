@@ -30,7 +30,7 @@
   --line:rgba(0,0,0,.1); --fill:rgba(0,0,0,.055);
   --acc:#e0883a; --win:#1f9d48; --loss:#d0342c; --push:rgba(0,0,0,.45);
   --g1:rgba(52,199,89,.2); --g2:rgba(52,199,89,.5); --r1:rgba(255,69,58,.18); --r2:rgba(255,69,58,.5);
-  --edge-g:#15803d; --edge-r:#dc2626;   /* a matchup's colour at its extremes: 1 v 32 green, 32 v 1 red */
+  --edge-g:#4ade80; --edge-r:#f87171;   /* the tint behind a matchup at its extremes: 1 v 32 green, 32 v 1 red */
   --font:'Jost','Futura','Century Gothic',system-ui,sans-serif;
   color-scheme:light dark;
 }
@@ -41,7 +41,7 @@
     --line:rgba(255,255,255,.16); --fill:rgba(255,255,255,.1);
     --win:#30d158; --loss:#ff6b63; --push:rgba(255,255,255,.5);
     --g1:rgba(52,199,89,.22); --g2:rgba(52,199,89,.55); --r1:rgba(255,69,58,.22); --r2:rgba(255,69,58,.55);
-    --edge-g:#3ddc84; --edge-r:#ff5c5c;
+    --edge-g:#15803d; --edge-r:#c62828;
   }
 }
 
@@ -227,7 +227,7 @@ body.dragging .tier.spare{display:block}
 .card .tm .pr{font-size:12px;color:var(--ink-2);text-align:center}
 .card .tm .sp{font-size:13px;color:var(--ink-2);text-align:center}
 .card .tm .sp.mine{font-style:italic}   /* the home row carries your own line */
-.card .ch{font-size:15px;font-weight:600;text-align:center;white-space:nowrap;color:var(--ink)}
+.card .ch{font-size:15px;font-weight:600;text-align:center;white-space:nowrap;color:var(--ink);padding:3px 0;border-radius:7px}
 .card .ch i{font-style:normal}
 .card .ch small{font-size:10px;font-weight:400;color:var(--ink-3);margin:0 2px}
 .card .rest{margin:3px 0 0 28px;font-size:11px;line-height:1.35;color:var(--ink-2)}
@@ -783,7 +783,7 @@ const VIEWS = {
     const dv = statIs() === 'dvoa', R = rankTable();
     // each chip: the offense's rank of the 32 against the rank of the defense it faces; the tint is the gap between them
     // green when the offense outranks the defense it faces, red when the defense outranks it, plain ink for an even match (16 v 16), stronger toward the extremes
-    const edgeStyle = e => e ? ` style="color:color-mix(in srgb, var(--${e > 0 ? 'edge-g' : 'edge-r'}) ${Math.min(100, Math.round(100 * Math.sqrt(Math.abs(e) / 31)))}%, var(--ink))"` : '';   // square-root ramp: 8 apart is already half way to full colour
+    const edgeStyle = e => e ? ` style="background:color-mix(in srgb, var(--${e > 0 ? 'edge-g' : 'edge-r'}) ${Math.min(100, Math.round(100 * Math.sqrt(Math.abs(e) / 31)))}%, transparent)"` : '';   // a tinted block behind the pair; square-root ramp, so 8 apart is already half way to full colour
     const chip = (o, d, k) => { const ro = R.rankOf(o, 'off', k), rd = R.rankOf(d, 'def', k); const edge = ro != null && rd != null ? rd - ro : null; return `<span class="ch num"${edgeStyle(edge)}><i>${ro ?? '–'}</i><small>v</small><i>${rd ?? '–'}</i></span>`; };
     // a check mark beside each team; one per game, so checking the other team moves it
     const pick = (g, t) => `<button type="button" class="pick${picks[g.id] === t ? ' on' : ''}" data-pick="${t}" aria-pressed="${picks[g.id] === t}" aria-label="Check ${esc(TEAMS[t] || t)}">${ICON.check}</button>`;
