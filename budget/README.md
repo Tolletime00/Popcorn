@@ -18,8 +18,8 @@ It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to 
 - **Each account** = the expenses on that account dated in the month, pending ones included, less any refunds.
 - **Savings** (the Summary tab row) = what you put away that month, entered by hand. It counts like an expense.
 - **Balance** = monthly limit + actual recurring vs estimate − the accounts − savings.
-- **Spending limit per day** = (monthly limit − savings) ÷ the days in the month, in grey under the balance.
-- **Expected balance** = (monthly limit − savings) − spending limit per day × the days gone so far (today included): what would be left if the limit were spent evenly so the month ended on exactly zero. A finished month shows $0; one not started yet shows the whole limit.
+- **Spending limit per day** = the balance ÷ the days left in the month (today not counted), in grey under the balance: what each remaining day can have if the month is to end on zero. A finished month shows a dash.
+- **Expected balance** = (monthly limit − savings) − (monthly limit − savings) ÷ the days in the month × the days gone so far (today included): what would be left if the limit were spent evenly so the month ended on exactly zero. A finished month shows $0; one not started yet shows the whole limit.
 
 Everything stays on the device it was typed into. The three dots back it all up to one file for OneDrive and restore from it; that file is also how the numbers move from an iPhone to an iPad.
 

@@ -486,7 +486,7 @@ const VIEWS = {
         ${line('Savings', signed(-m.aside), { tab: 'aside', cls: m.aside ? 'rule' : 'rule dim', sub: m.aside ? 'Put away this month, counted like an expense' : 'Tap to put some away this month' })}
         ${line('Balance', plain(m.balance), { cls: 'total', vcls: tone(m.balance), sub: `Limit, plus the line above, less the accounts${m.aside ? ' and savings' : ''}` })}
         ${line('Expected balance', plain(pace.expected), { cls: 'soft', sub: `Spending ${base} evenly: ${pace.gone} of ${pace.days} days gone` })}
-        ${line('Spending limit per day', plain(pace.perDay), { cls: 'soft', sub: `${base[0].toUpperCase() + base.slice(1)} ÷ ${pace.days} days` })}
+        ${(left => line('Spending limit per day', left ? plain(m.balance / left) : '–', { cls: 'soft', sub: left ? `Balance ÷ ${plural(left, 'day', 'days')} left` : 'The month is over' }))(pace.days - pace.gone)}
       </div>
     </section>`;
     $('#more').addEventListener('click', moreSheet); wireMonthBar();
