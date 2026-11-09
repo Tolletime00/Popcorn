@@ -210,23 +210,25 @@ body.dragging .tier.spare{display:block}
 /* ---------- Matchups */
 .wkbar{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;padding:4px 6px 0;min-height:52px}
 .wkbar h2{font-size:17px;font-weight:500;text-align:center}
-.card{margin:6px 20px 2px;padding:6px 10px;border-radius:14px;background:var(--fill)}
+.card{margin:6px 12px 2px;padding:6px 8px;border-radius:14px;background:var(--fill)}
 .card .when{display:flex;gap:10px;margin:0 0 2px 28px;font-size:11px;color:var(--ink-3)}
-/* a row per team: check · team · power rating · spread · then its offense against the defense it faces, EPA, pass, rush */
-.card .trow,.mcols{display:grid;grid-template-columns:24px 50px 30px 40px repeat(3,minmax(0,1fr));gap:4px;align-items:center}
-.card .trow{min-height:30px}
+/* the two team rows share one grid: check · team · power rating · (the spread and your line, once, across both rows) · offense · pass · rush */
+.card .rows,.mcols{display:grid;grid-template-columns:24px 46px 28px 40px 40px repeat(3,minmax(0,1fr));gap:4px;align-items:center}
+.card .rows{grid-auto-rows:minmax(30px,auto)}
+.card .sp,.card .my{grid-row:1/3;align-self:center;text-align:center;font-size:14px;color:var(--ink-2)}
+.card .sp{grid-column:4}
+.card .my{grid-column:5}
+.card .my{font-style:italic}   /* the line your own power ratings give, for the away team like the spread */
 .card .pick{width:24px;height:24px;border-radius:12px;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--ink-3);color:transparent;transition:background .15s,box-shadow .15s,color .15s}
 .card .pick svg{width:14px;height:14px}
 .card .pick.on{background:var(--acc);box-shadow:none;color:#000}
 .card .pick:active{background:var(--line)}
-.card .tm{grid-column:2/5;display:grid;grid-template-columns:subgrid;align-items:center;min-height:30px;margin:0 -4px;padding:0 4px;border-radius:8px;text-align:left}
+.card .tm{grid-column:2/4;display:grid;grid-template-columns:subgrid;align-items:center;min-height:30px;margin:0 -4px;padding:0 4px;border-radius:8px;text-align:left}
 .card .tm:active{background:var(--line)}
 .card .tm .ab{display:grid;grid-template-columns:14px auto;align-items:baseline;font-size:16px;font-weight:500;letter-spacing:.03em;white-space:nowrap}   /* the @ in its own slot, so the letters line up */
 .card .tm .ab small{font-size:11px;font-weight:400;letter-spacing:0;color:var(--ink-3)}
 .card .tm .ab b{font-weight:500}
 .card .tm .pr{font-size:12px;color:var(--ink-2);text-align:center}
-.card .tm .sp{font-size:13px;color:var(--ink-2);text-align:center}
-.card .tm .sp.mine{font-style:italic}   /* the home row carries your own line */
 .card .ch{font-size:15px;font-weight:600;text-align:center;white-space:nowrap;color:var(--ink);padding:3px 0;border-radius:7px}
 .card .ch i{font-style:normal}
 .card .ch small{font-size:10px;font-weight:400;color:var(--ink-3);margin:0 2px}
@@ -234,15 +236,15 @@ body.dragging .tier.spare{display:block}
 .card .rest b{font-weight:500;color:var(--ink)}
 .card .final{font-size:12px;color:var(--ink-2);margin:3px 0 0 28px}
 .card .final b{font-weight:500;color:var(--ink)}
-.mcols{padding:2px 30px 4px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.mcols span:nth-child(3),.mcols span:nth-child(4){text-align:center}
-.mcols span:nth-child(n+5){text-align:center}
+.mcols{padding:2px 20px 4px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.mcols span:nth-child(n+3){text-align:center}
 @media (max-width:359px){   /* the smallest iPhones: the same rows, a little tighter */
-  .card{margin:6px 12px 2px}
-  .card .trow,.mcols{grid-template-columns:24px 46px 26px 36px repeat(3,minmax(0,1fr));gap:3px}
-  .mcols{padding:2px 22px 4px}
+  .card{margin:6px 8px 2px;padding:6px}
+  .card .rows,.mcols{grid-template-columns:22px 42px 26px 36px 36px repeat(3,minmax(0,1fr));gap:3px}
+  .mcols{padding:2px 14px 4px;font-size:8.5px;letter-spacing:.02em}
   .card .tm .ab{font-size:15px}
-  .card .ch{font-size:13px}
+  .card .ch{font-size:12px}
+  .card .sp,.card .my{font-size:13px}
 }
 }
 
@@ -787,16 +789,15 @@ const VIEWS = {
     const chip = (o, d, k) => { const ro = R.rankOf(o, 'off', k), rd = R.rankOf(d, 'def', k); const edge = ro != null && rd != null ? rd - ro : null; return `<span class="ch num"${edgeStyle(edge)}><i>${ro ?? '–'}</i><small>v</small><i>${rd ?? '–'}</i></span>`; };
     // a check mark beside each team; one per game, so checking the other team moves it
     const pick = (g, t) => `<button type="button" class="pick${picks[g.id] === t ? ' on' : ''}" data-pick="${t}" aria-pressed="${picks[g.id] === t}" aria-label="Check ${esc(TEAMS[t] || t)}">${ICON.check}</button>`;
-    // a team's row: its check, its name (the home side marked), power rating and spread, then its offense against the other side's defense
-    const trow = (g, t, opp, home, yours) => `<div class="trow">${pick(g, t)}<button type="button" class="tm" data-team="${t}" aria-label="${esc(TEAMS[t] || t)}: game log"><span class="ab"><small>${home ? (g.neutral ? 'vs' : '@') : ''}</small><b>${t}</b></span><span class="pr num">${sign(ratingOf(t), 0)}</span><span class="sp num${home ? ' mine' : ''}" title="${home ? 'Your line, from your power ratings' : 'The spread'}">${esc(spreadText(home ? -yours : g.spread))}</span></button>${chip(t, opp, 0)}${chip(t, opp, 1)}${chip(t, opp, 2)}</div>`;
+    // a team's row: its check, its name (the home side marked) and power rating, then its offense against the other side's defense; the away row also carries the spread and your line, which run across both rows
+    const trow = (g, t, opp, home, yours) => `${pick(g, t)}<button type="button" class="tm" data-team="${t}" aria-label="${esc(TEAMS[t] || t)}: game log"><span class="ab"><small>${home ? (g.neutral ? 'vs' : '@') : ''}</small><b>${t}</b></span><span class="pr num">${sign(ratingOf(t), 0)}</span></button>${home ? '' : `<span class="sp num" title="The spread, for ${t}">${esc(spreadText(g.spread))}</span><span class="my num" title="Your line for ${t}, from your power ratings">${esc(spreadText(yours))}</span>`}${chip(t, opp, 0)}${chip(t, opp, 1)}${chip(t, opp, 2)}`;
     const card = g => {
       const ra = ratingOf(g.away), rh = ratingOf(g.home);
       const yours = rh - ra + (g.neutral ? 0 : HFA);   // the away team's line by your ratings
       const final = g.status === 'post' ? `<p class="final"><b>Final</b> ${g.away} ${g.awayScore} · ${g.home} ${g.homeScore}</p>` : g.status === 'in' ? `<p class="final"><b>${esc(g.detail || 'Live')}</b> ${g.away} ${g.awayScore} · ${g.home} ${g.homeScore}</p>` : '';
       return `<div class="card" data-id="${esc(g.id)}">
         <div class="when"><span>${esc(timeFmt.format(new Date(g.kickoff)))}</span><span>${g.abroad ? 'in ' + esc(g.abroad) : g.neutral ? 'Neutral site' : ''}</span></div>
-        ${trow(g, g.away, g.home, false, yours)}
-        ${trow(g, g.home, g.away, true, yours)}
+        <div class="rows">${trow(g, g.away, g.home, false, yours)}${trow(g, g.home, g.away, true, yours)}</div>
         ${(r => r ? `<p class="rest">${r}</p>` : '')(restNote(g))}
         ${final}
       </div>`;
@@ -807,7 +808,7 @@ const VIEWS = {
       <div class="wkbar"><button type="button" class="icon-btn" id="prev" aria-label="Previous week" ${week <= 1 ? 'disabled' : ''}>${ICON.back}</button><h2>Week ${week}</h2><button type="button" class="icon-btn" id="next" aria-label="Next week" ${week >= 18 ? 'disabled' : ''}>${ICON.fwd}</button></div>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh">${ICON.refresh}Refresh</button></div>
       <div class="stick"><div class="status"><span>Ranks of 32: offense vs the defense it faces</span>${statSeg()}</div>
-      <div class="mcols"><span></span><span>Team</span><span>Pwr</span><span>Spread</span><span>Offense</span><span>Pass</span><span>Rush</span></div></div>
+      <div class="mcols"><span></span><span>Team</span><span>Pwr</span><span>Spread</span><span>Yours</span><span>Offense</span><span>Pass</span><span>Rush</span></div></div>
       ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
       ${body || `<p class="note">${data ? 'No games that week.' : 'No data yet. Tap Refresh when you have a connection.'}</p>`}
       <div style="height:24px"></div>
