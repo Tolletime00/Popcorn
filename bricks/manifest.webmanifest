@@ -1,0 +1,14 @@
+{
+  "name": "Bricks",
+  "short_name": "Bricks",
+  "description": "Bounce the ball off your paddle and break every brick. Forty levels, easy to begin with, hard by the end.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
