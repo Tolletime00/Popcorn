@@ -79,7 +79,7 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .p-l{width:76px;height:114px;border-radius:6px}
 .poster.none{display:grid;place-items:center;font-weight:300;font-size:22px;color:var(--ink-3)}
 .chip{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 4px;border-radius:15px;background:var(--tint,var(--fill));color:#000;font-size:15px;font-weight:500;font-variant-numeric:tabular-nums lining-nums}
-.chip.wide{padding:0 7px;font-size:13px;letter-spacing:-.01em}
+.chip.wide{padding:0 8px}
 
 .mrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;width:100%}
 .mrow .tx{display:grid;gap:2px}
@@ -167,20 +167,18 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 
 .scale{list-style:none;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .scale li{flex:1 0 46px;max-height:70px;display:grid}
-.scale button{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;column-gap:10px;width:100%;padding:0 8px;border-radius:14px}
-.scale .n{display:grid;place-items:center;justify-self:center;min-width:28px;height:28px;padding:0 4px;border-radius:14px;font-size:16px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums;transition:background .12s,color .12s}
-.scale .n.wide{font-size:13px}
-.scale .tx{display:grid;gap:1px;overflow:hidden}
-.scale .nm{font-size:17px;line-height:1.2;color:var(--ink-2);transition:color .12s}
-.scale .d{font-size:13px;line-height:1.25;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scale button{display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;column-gap:8px;width:100%;padding:0 8px;border-radius:14px}
+.scale .n{display:grid;place-items:center;justify-self:center;min-width:28px;height:28px;padding:0 4px;border-radius:14px;white-space:nowrap;font-size:16px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums;transition:background .12s,color .12s}
+.scale .tx{min-width:0;font-size:17px;line-height:1.25;text-wrap:pretty}
+.scale .nm{color:var(--ink-2);transition:color .12s}
+.scale .d{color:var(--ink-3);transition:color .12s}
 .scale .on .n{background:var(--tint);color:#000;font-weight:500}
 .scale .on .nm{color:var(--ink);font-weight:500}
 .scale .on .d{color:var(--ink-2)}
 
 .dock{padding:12px 20px calc(12px + env(safe-area-inset-bottom))}
-.readout{min-height:78px;text-align:center}
+.readout{min-height:40px;text-align:center}
 .readout .word{font-size:30px;line-height:1.1;font-weight:300;letter-spacing:-.005em}
-.readout .desc{margin-top:5px;font-size:15px;line-height:1.3;color:var(--ink-2);text-wrap:balance}
 .readout.idle .word{color:var(--ink-3)}
 
 .slider{position:relative;height:52px;margin:2px 0 12px;touch-action:none;cursor:pointer;--p:.5}
@@ -190,7 +188,6 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 .slider .ticks i{width:2px;height:2px;margin:-1px -1px 0;border-radius:1px;background:var(--ink-3)}
 .slider .thumb{position:absolute;top:50%;left:calc((100% - 36px) * var(--p));width:36px;height:36px;margin-top:-18px;border-radius:18px;display:grid;place-items:center;background:var(--bg);box-shadow:inset 0 0 0 2px var(--ink-3);font-size:16px;font-weight:500;color:#000;font-variant-numeric:tabular-nums lining-nums;transition:left .12s ease-out,background .12s;pointer-events:none}
 .slider.set .thumb{background:var(--tint);box-shadow:0 0 0 3px var(--bg)}
-.slider .thumb.wide{font-size:12px;letter-spacing:-.02em}
 .slider input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
 .slider:focus-within .thumb{outline:2px solid var(--ink);outline-offset:3px}
 
@@ -202,7 +199,7 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
   .film h1{font-size:21px;-webkit-line-clamp:2}
   .scale{padding-top:2px;padding-bottom:2px}
   .scale li{flex-basis:42px}
-  .readout{min-height:62px}
+  .readout{min-height:34px}
   .readout .word{font-size:24px}
   .slider{height:46px;margin-bottom:8px}
 }
@@ -251,7 +248,7 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 #pop.clear{background:transparent}
 #pop .c{position:relative;display:grid;justify-items:center;gap:20px;transition:transform .42s cubic-bezier(.5,0,.75,.4),opacity .42s ease-in}
 #pop .disc{position:relative;z-index:1;width:172px;height:172px;border-radius:86px;display:grid;place-items:center;background:var(--tint);color:#000;font-size:100px;line-height:1;font-weight:300;font-variant-numeric:lining-nums;animation:pop-in .55s cubic-bezier(.2,1.7,.35,1) both}
-#pop .disc.wide{font-size:64px}
+#pop .disc.wide{font-size:80px}
 #pop .word{font-size:28px;font-weight:300;animation:word-in .3s .22s ease-out both;transition:opacity .15s}
 #pop .k{position:absolute;left:50%;top:86px;width:14px;height:14px;margin:-7px;border-radius:7px;background:var(--tint);animation:kernel .62s .08s cubic-bezier(.15,.7,.3,1) both}
 #pop .k:nth-child(odd){width:9px;height:9px;margin:-4.5px;background:var(--ink-3)}
@@ -291,16 +288,16 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
    Names and descriptions are the owner's own. Six levels, stored as 5 to 10; 5 stands for the whole bottom of a 1-to-10 scale,
    shown as "1–5". */
 const LEVELS = [
-  { v: 5, chip: '1–5', name: 'Meh/Bad', desc: 'Checking phone; couldn’t finish.' },
-  { v: 6, chip: '6', name: 'Entertaining', desc: 'Entertaining but not memorable.' },
-  { v: 7, chip: '7', name: 'Good', desc: 'Solid movie; worth streaming.' },
-  { v: 8, chip: '8', name: 'Great', desc: 'Great movie; worth renting.' },
-  { v: 9, chip: '9', name: 'Incredible', desc: 'Incredible movie; worth buying.' },
-  { v: 10, chip: '10', name: 'Favorite', desc: 'Personal favorite.' },
+  { v: 5, chip: '1–5', name: 'Meh/Bad', desc: 'Boring to unwatchable.' },
+  { v: 6, chip: '6', name: 'Decent', desc: 'Solid airplane movie.' },
+  { v: 7, chip: '7', name: 'Good', desc: 'Worth streaming.' },
+  { v: 8, chip: '8', name: 'Great', desc: 'Worth renting.' },
+  { v: 9, chip: '9', name: 'Incredible', desc: 'Worth buying.' },
+  { v: 10, chip: '10', name: 'Personal Favorites', desc: '' },
 ];
 const MIN = LEVELS[0].v, MAX = LEVELS[LEVELS.length - 1].v;   // 5 and 10
 const LV = v => LEVELS[Math.min(MAX, Math.max(MIN, Math.round(v))) - MIN];
-const chipOf = v => LV(v).chip, nameOf = v => LV(v).name, descOf = v => LV(v).desc;
+const chipOf = v => LV(v).chip, nameOf = v => LV(v).name;
 const chipHTML = v => `<span class="chip${chipOf(v).length > 2 ? ' wide' : ''}">${chipOf(v)}</span>`;
 // the scale this app used before, 1 to 5 (Bad, Meh, Good, Great, Perfect), comes across level by level; a 1-to-10 number is already on this scale, with everything under 5 landing in "1–5"
 const fromFive = r => ({ 1: 5, 2: 5, 3: 6, 4: 8, 5: 10 })[Math.min(5, Math.max(1, Math.round(r) || 1))];
@@ -735,7 +732,7 @@ function recPrompt(q) {
     if (g.length) lines.push(`${chipOf(r)} (${nameOf(r)}): ` + g.map(m => m.title + (m.year ? ` (${m.year})` : '')).join('; '));
   }
   const plain = d => d.replace(/\.\s*$/, '').replace(/;\s+/g, ', ').toLowerCase();
-  const scale = LEVELS.map(l => `${l.chip} ${plain(l.desc)}`).reverse().join('; ');
+  const scale = LEVELS.map(l => `${l.chip} ${l.name}${l.desc ? ` (${plain(l.desc)})` : ''}`).reverse().join('; ');
   return [
     `Recommend 5 to 10 movies for this request: "${q}"`,
     '',
@@ -900,10 +897,10 @@ const VIEWS = {
       </div>
       <div class="gist"><p class="syn" id="syn" hidden></p></div>
       <ol class="scale" id="scale">
-        ${LEVELS.map(l => `<li><button type="button" data-v="${l.v}"><span class="n${l.chip.length > 2 ? ' wide' : ''}">${l.chip}</span><span class="tx"><span class="nm">${esc(l.name)}</span><span class="d">${esc(l.desc)}</span></span></button></li>`).join('')}
+        ${LEVELS.map(l => `<li><button type="button" data-v="${l.v}"><span class="n">${l.chip}</span><span class="tx"><span class="nm">${esc(l.name)}</span>${l.desc ? `<span class="d"> – ${esc(l.desc)}</span>` : ''}</span></button></li>`).join('')}
       </ol>
       <div class="dock">
-        <div class="readout idle" id="readout" aria-live="polite"><p class="word">Slide to rate</p><p class="desc"></p></div>
+        <div class="readout idle" id="readout" aria-live="polite"><p class="word">Slide to rate</p></div>
         <div class="slider" id="slider">
           <div class="track"><div class="fill"></div></div>
           <div class="ticks">${'<i></i>'.repeat(LEVELS.length)}</div>
@@ -941,7 +938,6 @@ const VIEWS = {
       const ro = $('#readout');
       ro.classList.remove('idle');
       $('.word', ro).textContent = nameOf(v);
-      $('.desc', ro).textContent = descOf(v);
       for (const b of $$('#scale button')) b.classList.toggle('on', +b.dataset.v === v);
       const on = $('#scale .on');
       if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
