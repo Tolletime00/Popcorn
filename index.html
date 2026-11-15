@@ -151,6 +151,16 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 .watch{min-height:100%}
 .watch .ask{padding:28px 24px 18px}
 .watch .cap{padding:0 20px;margin-bottom:2px}
+.wrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.wrow .mrow{padding-right:6px}
+.wrow .star{width:48px;height:48px;margin-right:6px;display:grid;place-items:center;border-radius:24px;color:var(--ink-3);-webkit-tap-highlight-color:transparent}
+.wrow .star svg,.sec .si svg{display:block;width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.wrow .star:active{background:var(--fill)}
+.wrow .star.on{color:var(--gold)}
+.wrow .star.on svg{fill:var(--gold);stroke:var(--gold)}
+.wrow .star.pop svg{animation:bump .45s cubic-bezier(.3,1.6,.5,1)}
+.sec .si{display:grid;color:var(--gold);margin-right:-2px}
+.sec .si svg{width:22px;height:22px;fill:var(--gold);stroke:var(--gold)}
 .mrow .ck{width:24px;height:24px;color:var(--ink-3)}
 .mrow .ck svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 
@@ -331,6 +341,7 @@ const ICON = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.4l2.8 2.8 5.4-6"/></svg>',
   chev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  star: '<svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 3.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L13 18.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/></svg>',
 };
 
 /* ================================================================== storage
@@ -584,7 +595,7 @@ function csvOf(header, rows) {
   return '\ufeff' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 const toCSV = () => csvOf(['Title', 'Year', `Rating (${MIN}-${MAX})`, 'Date Rated', 'TMDB ID'], sorted(ratings).map(r => [r.title, r.year ?? '', r.rating, localDay(r.at), r.id]));   // 5 in the file is the "1–5" level
-const watchCSV = () => csvOf(['Title', 'Year', 'Date Added', 'TMDB ID'], watch.map(w => [w.title, w.year ?? '', localDay(w.added), w.id]));
+const watchCSV = () => csvOf(['Title', 'Year', 'Date Added', 'TMDB ID', 'Starred'], watch.map(w => [w.title, w.year ?? '', localDay(w.added), w.id, w.star ? 'yes' : '']));
 
 async function backup() {
   const files = [];
@@ -626,7 +637,7 @@ function readBackup(text) {
   const head = rows[0].map(h => fold(h).replace(/[^a-z0-9]/g, ''));
   const col = names => head.findIndex(h => names.includes(h));
   let iT = col(['title', 'movie', 'name', 'film']), iY = col(['year', 'releaseyear']), iR = col([`rating${MIN}${MAX}`, 'rating15', 'rating110', 'rating', 'score', 'myrating']);
-  let iD = col(['daterated', 'dateadded', 'date', 'rated', 'added']), iI = col(['tmdbid', 'id']);
+  let iD = col(['daterated', 'dateadded', 'date', 'rated', 'added']), iI = col(['tmdbid', 'id']), iS = col(['starred', 'star', 'favorite', 'favourite']);
   const tag = iR >= 0 ? head[iR] : '';   // rating510 is this version's own file, rating15 the 1-to-5 version's
   const headed = iT >= 0 && (iR >= 0 || iD >= 0 || iI >= 0 || iY >= 0);
   let body = rows.slice(1);
@@ -641,7 +652,8 @@ function readBackup(text) {
     const id = iI >= 0 ? parseInt(r[iI], 10) : NaN;
     const day = iD >= 0 ? String(r[iD] ?? '').trim() : '';
     const when = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(day + 'T12:00:00') : new Date(day);
-    out.push({ id: Number.isFinite(id) && id > 0 ? id : null, title, year: yearOf(String(r[iY] ?? '').trim()), rating, at: isNaN(when) ? null : when.toISOString() });
+    const star = kind === 'watch' && iS >= 0 ? /^(yes|y|true|1|x|★|starred)$/i.test(String(r[iS] ?? '').trim()) : null;   // null: the file doesn't say
+    out.push({ id: Number.isFinite(id) && id > 0 ? id : null, title, year: yearOf(String(r[iY] ?? '').trim()), rating, at: isNaN(when) ? null : when.toISOString(), star });
   }
   // Every file lands on this scale: the 1-to-5 version's file level by level, as does any unmarked file with nothing over 5; otherwise the numbers are already 1-to-10 and anything under 5 means "1–5"
   if (kind === 'ratings') {
@@ -679,7 +691,7 @@ async function restore(fileList) {
       const old = watch.find(w => w.id === id);
       const rec = { id, title: (d && d.title) || row.title, year: (d && d.year) ?? row.year ?? null, poster: (d && d.poster) ?? (old && old.poster) ?? null,
         genres: d ? d.genres : (old && old.genres) || [], overview: (d && d.overview) || (old && old.overview) || '',
-        added: row.at || (old && old.added) || new Date(stamp - done * 1000).toISOString(), full: !!d || !!(old && old.full) };
+        added: row.at || (old && old.added) || new Date(stamp - done * 1000).toISOString(), full: !!d || !!(old && old.full), star: row.star ?? !!(old && old.star) };
       if (old) Object.assign(old, rec); else watch.push(rec);
       addedW++;
     } else {
@@ -718,7 +730,7 @@ function guideText() {
     '4. Paste your movie database key. It is on themoviedb.org under Settings, then API (the one called API Key).',
     `5. In ${APP}, go to Log, tap the three dots, then "Restore from a backup" and pick "${CSV_NAME}" (and "${WATCH_NAME}", if you saved one) from OneDrive.`,
     '',
-    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds every rating: title, year, rating (${MIN} to ${MAX}; ${MIN} stands for the "1–5" level), date and the movie database ID. "${WATCH_NAME}" holds the movies still to watch.`,
+    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds every rating: title, year, rating (${MIN} to ${MAX}; ${MIN} stands for the "1–5" level), date and the movie database ID. "${WATCH_NAME}" holds the movies still to watch, and which of them are starred.`,
     '',
   ].join('\r\n');
 }
@@ -1072,6 +1084,16 @@ const VIEWS = {
     });
     const wl = $('#wl');
     if (wl) wl.addEventListener('click', e => {
+      const s = e.target.closest('.star');
+      if (s) {   // star or unstar: the movie moves between the Starred section and its year
+        const w = watch.find(x => String(x.id) === s.dataset.star);
+        if (!w) return;
+        w.star = !w.star; persistWatch(1);
+        const page = top(); page.scroll = viewEl.scrollTop; render();
+        if (w.star) { const el = $(`.star[data-star="${w.id}"]`); if (el) el.classList.add('pop'); }
+        toast(w.star ? `Moved ${w.title} up to Starred.` : `Moved ${w.title} back to ${w.year ?? 'Year unknown'}.`);
+        return;
+      }
       const b = e.target.closest('.mrow');
       if (!b) return;
       const w = watch.find(x => String(x.id) === b.dataset.id);
@@ -1127,18 +1149,23 @@ const VIEWS = {
 
 /* ---------------- watchlist */
 function watchGroups() {
+  const all = watchSorted();
   const groups = [];
-  for (const w of watchSorted()) {
+  const starred = all.filter(w => w.star);
+  if (starred.length) groups.push({ star: true, items: starred });   // the starred ones sit above every year
+  for (const w of all) {
+    if (w.star) continue;
     const year = w.year ?? null;
     const g = groups[groups.length - 1];
-    if (g && g.year === year) g.items.push(w); else groups.push({ year, items: [w] });
+    if (g && !g.star && g.year === year) g.items.push(w); else groups.push({ year, items: [w] });
   }
-  return groups.map(g => `<div class="sec"><span class="nm">${g.year ?? 'Year unknown'}</span><span class="ct">${g.items.length}</span></div>
-    <ul class="list">${g.items.map(w => `<li>${rowHTML({ ...w, rating: (byId(w.id) || {}).rating }, { genre: true })}</li>`).join('')}</ul>`).join('');
+  const row = w => `<li class="wrow">${rowHTML({ ...w, rating: (byId(w.id) || {}).rating }, { genre: true })}<button type="button" class="star${w.star ? ' on' : ''}" data-star="${esc(w.id)}" aria-pressed="${!!w.star}" aria-label="${w.star ? 'Unstar' : 'Star'} ${esc(w.title)}">${ICON.star}</button></li>`;
+  return groups.map(g => `<div class="sec${g.star ? ' starred' : ''}">${g.star ? `<span class="si">${ICON.star}</span><span class="nm">Starred</span>` : `<span class="nm">${g.year ?? 'Year unknown'}</span>`}<span class="ct">${g.items.length}</span></div>
+    <ul class="list">${g.items.map(row).join('')}</ul>`).join('');
 }
 function addToWatch(m) {
   if (onWatch(m.id)) { toast(`${m.title} is already on your watchlist.`); return; }
-  watch.unshift({ id: m.id, title: m.title, year: m.year ?? null, poster: m.poster ?? null, genres: m.genres || [], overview: m.overview || '', added: new Date().toISOString(), full: false });
+  watch.unshift({ id: m.id, title: m.title, year: m.year ?? null, poster: m.poster ?? null, genres: m.genres || [], overview: m.overview || '', added: new Date().toISOString(), full: false, star: false });
   persistWatch(1);
   homes.watch.scroll = 0;
   goHome('watch');

@@ -5,7 +5,7 @@ This repository also holds the other apps, each in its own folder with its own n
 - **Gym** (`gym`), **Books** (`books`), **To-Do** (`todo`), **Football** (`football`) and **Budget** (`budget`). Gym and Budget take an iPad layout (a sidebar, dialogs) on a wide screen and keep the iPhone layout on a phone; the backup files move the data between the two. Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
 - Games for the kids, made for an iPad: **Bounce** (`bounce`, two-player paddles), **Air Hockey** (`hockey`), **Memory** (`memory`, pairs), **Bubbles** (`bubbles`, pop them), **Copy Cat** (`copycat`, repeat the colours), **Coloring** (`coloring`), **Numbers** (`numbers`), **Letters** (`letters`), **Shapes** (`shapes`, a shape sorter) **Pipes** (`pipes`, a Flow-style dot-connecting puzzle with fifty levels) and **Bricks** (`bricks`, a brick breaker with forty levels that start easy and end hard).
 
-A personal movie-rating app for iPhone. Rate the movie you just watched on a six-level scale (1–5 Meh/Bad, boring to unwatchable; 6 Decent, solid airplane movie; 7 Good, worth streaming; 8 Great, worth renting; 9 Incredible, worth buying; 10 Personal Favorites), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
+A personal movie-rating app for iPhone. Rate the movie you just watched on a six-level scale (1–5 Meh/Bad, boring to unwatchable; 6 Decent, solid airplane movie; 7 Good, worth streaming; 8 Great, worth renting; 9 Incredible, worth buying; 10 Personal Favorites), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis; star a movie to pin it in a Starred section at the top), and ask Claude for recommendations based on what you have and haven't seen.
 
 It is a web app that lives on the Home Screen. There is no App Store, no Mac and nothing to pay for.
 
@@ -21,7 +21,7 @@ It is a web app that lives on the Home Screen. There is no App Store, no Mac and
 - **Hosting:** GitHub Pages serves these files from this repository for free.
 - **Movie data and posters:** [TMDB](https://www.themoviedb.org). Each phone uses its owner's free TMDB API key, pasted into the app once. The key is stored on the phone, never in this repository.
 - **Ratings and watchlist:** stored on the phone, inside the Home Screen app. They are not in this repository and never leave the phone except in the backup you save.
-- **Backup:** Log, the three dots, "Back up" saves `Movie Ratings.csv` (Title, Year, Rating 5-10 where 5 is the "1–5" level, Date Rated, TMDB ID) and, if you have one, `Watchlist.csv` (Title, Year, Date Added, TMDB ID). Save them to OneDrive.
+- **Backup:** Log, the three dots, "Back up" saves `Movie Ratings.csv` (Title, Year, Rating 5-10 where 5 is the "1–5" level, Date Rated, TMDB ID) and, if you have one, `Watchlist.csv` (Title, Year, Date Added, TMDB ID, Starred). Save them to OneDrive.
 - **Recommendations:** the Recommend tab hands your request and your ratings to the Claude app.
 
 ## Getting it back on a new phone
