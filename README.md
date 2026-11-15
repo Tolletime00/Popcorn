@@ -5,7 +5,7 @@ This repository also holds the other apps, each in its own folder with its own n
 - **Gym** (`gym`), **Books** (`books`), **To-Do** (`todo`), **Football** (`football`) and **Budget** (`budget`). Gym and Budget take an iPad layout (a sidebar, dialogs) on a wide screen and keep the iPhone layout on a phone; the backup files move the data between the two. Football's scores, spreads and EPA are rebuilt every half hour by the `Football data` workflow in `.github/workflows`.
 - Games for the kids, made for an iPad: **Bounce** (`bounce`, two-player paddles), **Air Hockey** (`hockey`), **Memory** (`memory`, pairs), **Bubbles** (`bubbles`, pop them), **Copy Cat** (`copycat`, repeat the colours), **Coloring** (`coloring`), **Numbers** (`numbers`), **Letters** (`letters`), **Shapes** (`shapes`, a shape sorter) **Pipes** (`pipes`, a Flow-style dot-connecting puzzle with fifty levels) and **Bricks** (`bricks`, a brick breaker with forty levels that start easy and end hard).
 
-A personal movie-rating app for iPhone. Rate the movie you just watched on a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
+A personal movie-rating app for iPhone. Rate the movie you just watched on a six-level scale (1–5 Checking phone, couldn't finish; 6 Entertaining but not memorable; 7 Solid movie, worth streaming; 8 Great movie, worth renting; 9 Incredible movie, worth buying; 10 Personal favorite), keep a searchable log (grouped by rating, newest year first, with any rating level hideable), keep a watchlist of movies to see (newest year first, with genres and a synopsis), and ask Claude for recommendations based on what you have and haven't seen.
 
 It is a web app that lives on the Home Screen. There is no App Store, no Mac and nothing to pay for.
 
@@ -21,7 +21,7 @@ It is a web app that lives on the Home Screen. There is no App Store, no Mac and
 - **Hosting:** GitHub Pages serves these files from this repository for free.
 - **Movie data and posters:** [TMDB](https://www.themoviedb.org). Each phone uses its owner's free TMDB API key, pasted into the app once. The key is stored on the phone, never in this repository.
 - **Ratings and watchlist:** stored on the phone, inside the Home Screen app. They are not in this repository and never leave the phone except in the backup you save.
-- **Backup:** Log, the three dots, "Back up" saves `Movie Ratings.csv` (Title, Year, Rating 1-5, Date Rated, TMDB ID) and, if you have one, `Watchlist.csv` (Title, Year, Date Added, TMDB ID). Save them to OneDrive.
+- **Backup:** Log, the three dots, "Back up" saves `Movie Ratings.csv` (Title, Year, Rating 5-10 where 5 is the "1–5" level, Date Rated, TMDB ID) and, if you have one, `Watchlist.csv` (Title, Year, Date Added, TMDB ID). Save them to OneDrive.
 - **Recommendations:** the Recommend tab hands your request and your ratings to the Claude app.
 
 ## Getting it back on a new phone
@@ -43,7 +43,7 @@ Two things to know:
 
 Ask Claude for the change and give it `index.html` from this repository. Upload the new `index.html` here (Add file, Upload files, Commit changes). The app picks it up the next time it opens with a connection, usually within ten minutes. Close the app fully and open it again if it looks unchanged.
 
-Earlier versions of the app used a 1 to 10 scale. This version converts those ratings on its own, both the ones already on the phone and the ones in an old backup file (1-2 become 1, 3-4 become 2, 5-6 become 3, 7-8 become 4, 9-10 become 5).
+Earlier versions of the app used a 1 to 5 scale (Bad, Meh, Good, Great, Perfect), and before that 1 to 10. This version converts those ratings on its own the first time it opens, and again when an old backup file is restored: on the 1 to 5 scale, 5 becomes 10, 4 becomes 8, 3 becomes 6, and 1 and 2 become "1–5"; a 1 to 10 rating keeps its number, with anything under 5 landing in "1–5".
 
 ## Credits
 

@@ -31,14 +31,14 @@
   --font:'Jost','Futura','Century Gothic',system-ui,sans-serif;
   color-scheme:light dark;
 }
-.r1{--tint:#d2cec2}.r2{--tint:#d9cdae}.r3{--tint:#e4cc8e}.r4{--tint:#f1ca68}.r5{--tint:#ffc83d}
+.r5{--tint:#d2cec2}.r6{--tint:#d9cdae}.r7{--tint:#e4cc8e}.r8{--tint:#edca78}.r9{--tint:#f6c955}.r10{--tint:#ffc83d}
 @media (prefers-color-scheme:dark){
   :root{
     --bg:#000; --sheet:#1c1c1e; --ink:#fff;
     --ink-2:rgba(255,255,255,.64); --ink-3:rgba(255,255,255,.4);
     --line:rgba(255,255,255,.16); --fill:rgba(255,255,255,.1);
   }
-  .r1{--tint:#8f8b80}.r2{--tint:#a09476}.r3{--tint:#bba366}.r4{--tint:#dbb453}.r5{--tint:#ffc83d}
+  .r5{--tint:#8f8b80}.r6{--tint:#a09476}.r7{--tint:#bba366}.r8{--tint:#cfae5a}.r9{--tint:#e7bc47}.r10{--tint:#ffc83d}
 }
 
 /* ---------- base */
@@ -79,6 +79,7 @@ body[data-view=movie] #tabs,body[data-view=install] #tabs{display:none}
 .p-l{width:76px;height:114px;border-radius:6px}
 .poster.none{display:grid;place-items:center;font-weight:300;font-size:22px;color:var(--ink-3)}
 .chip{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 4px;border-radius:15px;background:var(--tint,var(--fill));color:#000;font-size:15px;font-weight:500;font-variant-numeric:tabular-nums lining-nums}
+.chip.wide{padding:0 7px;font-size:13px;letter-spacing:-.01em}
 
 .mrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;width:100%}
 .mrow .tx{display:grid;gap:2px}
@@ -166,8 +167,9 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 
 .scale{list-style:none;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .scale li{flex:1 0 46px;max-height:70px;display:grid}
-.scale button{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;column-gap:12px;width:100%;padding:0 8px;border-radius:14px}
-.scale .n{display:grid;place-items:center;width:28px;height:28px;border-radius:14px;font-size:16px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums;transition:background .12s,color .12s}
+.scale button{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;column-gap:10px;width:100%;padding:0 8px;border-radius:14px}
+.scale .n{display:grid;place-items:center;justify-self:center;min-width:28px;height:28px;padding:0 4px;border-radius:14px;font-size:16px;color:var(--ink-3);font-variant-numeric:tabular-nums lining-nums;transition:background .12s,color .12s}
+.scale .n.wide{font-size:13px}
 .scale .tx{display:grid;gap:1px;overflow:hidden}
 .scale .nm{font-size:17px;line-height:1.2;color:var(--ink-2);transition:color .12s}
 .scale .d{font-size:13px;line-height:1.25;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -188,6 +190,7 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 .slider .ticks i{width:2px;height:2px;margin:-1px -1px 0;border-radius:1px;background:var(--ink-3)}
 .slider .thumb{position:absolute;top:50%;left:calc((100% - 36px) * var(--p));width:36px;height:36px;margin-top:-18px;border-radius:18px;display:grid;place-items:center;background:var(--bg);box-shadow:inset 0 0 0 2px var(--ink-3);font-size:16px;font-weight:500;color:#000;font-variant-numeric:tabular-nums lining-nums;transition:left .12s ease-out,background .12s;pointer-events:none}
 .slider.set .thumb{background:var(--tint);box-shadow:0 0 0 3px var(--bg)}
+.slider .thumb.wide{font-size:12px;letter-spacing:-.02em}
 .slider input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}
 .slider:focus-within .thumb{outline:2px solid var(--ink);outline-offset:3px}
 
@@ -248,6 +251,7 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 #pop.clear{background:transparent}
 #pop .c{position:relative;display:grid;justify-items:center;gap:20px;transition:transform .42s cubic-bezier(.5,0,.75,.4),opacity .42s ease-in}
 #pop .disc{position:relative;z-index:1;width:172px;height:172px;border-radius:86px;display:grid;place-items:center;background:var(--tint);color:#000;font-size:100px;line-height:1;font-weight:300;font-variant-numeric:lining-nums;animation:pop-in .55s cubic-bezier(.2,1.7,.35,1) both}
+#pop .disc.wide{font-size:64px}
 #pop .word{font-size:28px;font-weight:300;animation:word-in .3s .22s ease-out both;transition:opacity .15s}
 #pop .k{position:absolute;left:50%;top:86px;width:14px;height:14px;margin:-7px;border-radius:7px;background:var(--tint);animation:kernel .62s .08s cubic-bezier(.15,.7,.3,1) both}
 #pop .k:nth-child(odd){width:9px;height:9px;margin:-4.5px;background:var(--ink-3)}
@@ -284,16 +288,23 @@ button.sec[aria-expanded=false]{padding-bottom:14px}
 'use strict';
 
 /* ================================================================== the scale
-   Names and descriptions are the owner's own. Index = rating. */
-const SCALE = [
-  null,
-  ['Bad', 'Stop early. Unwatchable.'],
-  ['Meh', 'Waste of time. Checking phone.'],
-  ['Good', 'Worth streaming. Entertaining.'],
-  ['Great', 'Worth renting. Memorable.'],
-  ['Perfect', 'Worth owning. Personal favorites.'],
+   Names and descriptions are the owner's own. Six levels, stored as 5 to 10; 5 stands for the whole bottom of a 1-to-10 scale,
+   shown as "1–5". */
+const LEVELS = [
+  { v: 5, chip: '1–5', name: 'Couldn’t finish', desc: 'Checking phone; couldn’t finish.' },
+  { v: 6, chip: '6', name: 'Entertaining', desc: 'Entertaining but not memorable.' },
+  { v: 7, chip: '7', name: 'Solid', desc: 'Solid movie; worth streaming.' },
+  { v: 8, chip: '8', name: 'Great', desc: 'Great movie; worth renting.' },
+  { v: 9, chip: '9', name: 'Incredible', desc: 'Incredible movie; worth buying.' },
+  { v: 10, chip: '10', name: 'Favorite', desc: 'Personal favorite.' },
 ];
-const MAX = SCALE.length - 1;   // 5
+const MIN = LEVELS[0].v, MAX = LEVELS[LEVELS.length - 1].v;   // 5 and 10
+const LV = v => LEVELS[Math.min(MAX, Math.max(MIN, Math.round(v))) - MIN];
+const chipOf = v => LV(v).chip, nameOf = v => LV(v).name, descOf = v => LV(v).desc;
+const chipHTML = v => `<span class="chip${chipOf(v).length > 2 ? ' wide' : ''}">${chipOf(v)}</span>`;
+// the scale this app used before, 1 to 5 (Bad, Meh, Good, Great, Perfect), comes across level by level; a 1-to-10 number is already on this scale, with everything under 5 landing in "1–5"
+const fromFive = r => ({ 1: 5, 2: 5, 3: 6, 4: 8, 5: 10 })[Math.min(5, Math.max(1, Math.round(r) || 1))];
+const fromTen = r => Math.min(MAX, Math.max(MIN, Math.round(r) || MIN));
 
 const APP = 'Movies';
 const API = 'https://api.themoviedb.org/3';
@@ -339,9 +350,14 @@ let watch = LS.get(K.watch, []);   // movies to watch, newest first
 if (!Array.isArray(watch)) watch = [];
 const hiddenLevels = new Set((LS.get(K.fold, []) || []).map(Number));   // rating levels folded away on the Log tab
 const getKey = () => LS.get(K.key, '') || '';
-if (ratings.some(r => r.rating > MAX)) {   // rated with the old 1-to-10 version of the app
-  for (const r of ratings) r.rating = Math.min(MAX, Math.max(1, Math.ceil(r.rating / 2)));
-  LS.set(K.ratings, ratings); meta.unsaved = (meta.unsaved || 0) + 1; LS.set(K.meta, meta);
+if (meta.scale !== 10) {   // rated on the old 1-to-5 scale (or the 1-to-10 before it): 5 → 10, 4 → 8, 3 → 6, 1 and 2 → "1–5"
+  if (ratings.length) {
+    const ten = ratings.some(r => r.rating > 5);   // never folded onto 1-to-5, so already a 1-to-10 number
+    for (const r of ratings) r.rating = ten ? fromTen(r.rating) : fromFive(r.rating);
+    LS.set(K.ratings, ratings); meta.unsaved = (meta.unsaved || 0) + 1;
+  }
+  meta.scale = 10; LS.set(K.meta, meta);
+  hiddenLevels.clear(); LS.set(K.fold, []);
 }
 
 function persist(changes = 0) {
@@ -457,7 +473,7 @@ function rowHTML(m, { size = 'm', word = false, genre = false } = {}) {
   return `<button type="button" class="mrow" data-id="${esc(m.id)}">
     ${poster(m.poster, m.title, size)}
     <span class="tx"><span class="t">${esc(m.title)}</span>${m.year ? `<span class="y">${esc(m.year)}</span>` : ''}${g}</span>
-    ${r ? `<span class="rt r${r}"><span class="chip">${r}</span>${word ? `<span class="w">${esc(SCALE[r][0])}</span>` : ''}</span>` : m.onList ? `<span class="ck" title="On your watchlist">${ICON.check}</span>` : ''}
+    ${r ? `<span class="rt r${r}">${chipHTML(r)}${word ? `<span class="w">${esc(nameOf(r))}</span>` : ''}</span>` : m.onList ? `<span class="ck" title="On your watchlist">${ICON.check}</span>` : ''}
   </button>`;
 }
 
@@ -570,7 +586,7 @@ function csvOf(header, rows) {
   const cell = v => { const s = String(v ?? ''); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return '\ufeff' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
-const toCSV = () => csvOf(['Title', 'Year', `Rating (1-${MAX})`, 'Date Rated', 'TMDB ID'], sorted(ratings).map(r => [r.title, r.year ?? '', r.rating, localDay(r.at), r.id]));
+const toCSV = () => csvOf(['Title', 'Year', `Rating (${MIN}-${MAX})`, 'Date Rated', 'TMDB ID'], sorted(ratings).map(r => [r.title, r.year ?? '', r.rating, localDay(r.at), r.id]));   // 5 in the file is the "1–5" level
 const watchCSV = () => csvOf(['Title', 'Year', 'Date Added', 'TMDB ID'], watch.map(w => [w.title, w.year ?? '', localDay(w.added), w.id]));
 
 async function backup() {
@@ -612,9 +628,9 @@ function readBackup(text) {
   if (!rows.length) return { kind: 'ratings', rows: [] };
   const head = rows[0].map(h => fold(h).replace(/[^a-z0-9]/g, ''));
   const col = names => head.findIndex(h => names.includes(h));
-  let iT = col(['title', 'movie', 'name', 'film']), iY = col(['year', 'releaseyear']), iR = col([`rating1${MAX}`, 'rating', 'score', 'myrating']);
+  let iT = col(['title', 'movie', 'name', 'film']), iY = col(['year', 'releaseyear']), iR = col([`rating${MIN}${MAX}`, 'rating15', 'rating110', 'rating', 'score', 'myrating']);
   let iD = col(['daterated', 'dateadded', 'date', 'rated', 'added']), iI = col(['tmdbid', 'id']);
-  const tagged = iR >= 0 && head[iR] === `rating1${MAX}`;   // written by this version of the app
+  const tag = iR >= 0 ? head[iR] : '';   // rating510 is this version's own file, rating15 the 1-to-5 version's
   const headed = iT >= 0 && (iR >= 0 || iD >= 0 || iI >= 0 || iY >= 0);
   let body = rows.slice(1);
   if (!headed) { iT = 0; iY = 1; iR = 2; iD = 3; iI = 4; body = rows; }   // no header row: assume our own ratings columns
@@ -624,17 +640,19 @@ function readBackup(text) {
     const title = String(r[iT] ?? '').trim();
     if (!title) continue;
     const rating = kind === 'ratings' ? Math.round(Number(String(r[iR] ?? '').trim())) : null;
-    if (kind === 'ratings' && !(rating >= 1 && rating <= (tagged ? MAX : 10))) continue;
+    if (kind === 'ratings' && !(rating >= 1 && rating <= 10)) continue;
     const id = iI >= 0 ? parseInt(r[iI], 10) : NaN;
     const day = iD >= 0 ? String(r[iD] ?? '').trim() : '';
     const when = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(day + 'T12:00:00') : new Date(day);
     out.push({ id: Number.isFinite(id) && id > 0 ? id : null, title, year: yearOf(String(r[iY] ?? '').trim()), rating, at: isNaN(when) ? null : when.toISOString() });
   }
-  // A backup from the old 1-to-10 version of the app: fold it onto this scale.
-  if (kind === 'ratings' && !tagged && out.some(r => r.rating > MAX)) for (const r of out) r.rating = oldToNew(r.rating);
+  // Every file lands on this scale: the 1-to-5 version's file level by level, as does any unmarked file with nothing over 5; otherwise the numbers are already 1-to-10 and anything under 5 means "1–5"
+  if (kind === 'ratings') {
+    const conv = tag === `rating${MIN}${MAX}` ? fromTen : tag === 'rating15' || !out.some(r => r.rating > 5) ? fromFive : fromTen;
+    for (const r of out) r.rating = conv(r.rating);
+  }
   return { kind, rows: out };
 }
-const oldToNew = r => Math.min(MAX, Math.max(1, Math.ceil(r / 2)));
 
 async function restore(fileList) {
   const jobs = [];
@@ -703,7 +721,7 @@ function guideText() {
     '4. Paste your movie database key. It is on themoviedb.org under Settings, then API (the one called API Key).',
     `5. In ${APP}, go to Log, tap the three dots, then "Restore from a backup" and pick "${CSV_NAME}" (and "${WATCH_NAME}", if you saved one) from OneDrive.`,
     '',
-    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds every rating: title, year, rating (1 to ${MAX}), date and the movie database ID. "${WATCH_NAME}" holds the movies still to watch.`,
+    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds every rating: title, year, rating (${MIN} to ${MAX}; ${MIN} stands for the "1–5" level), date and the movie database ID. "${WATCH_NAME}" holds the movies still to watch.`,
     '',
   ].join('\r\n');
 }
@@ -712,12 +730,12 @@ function guideText() {
    Builds the request for Claude: what the owner wants plus everything already seen. */
 function recPrompt(q) {
   const lines = [];
-  for (let r = MAX; r >= 1; r--) {
+  for (let r = MAX; r >= MIN; r--) {
     const g = sorted(ratings.filter(x => x.rating === r));
-    if (g.length) lines.push(`${r} (${SCALE[r][0]}): ` + g.map(m => m.title + (m.year ? ` (${m.year})` : '')).join('; '));
+    if (g.length) lines.push(`${chipOf(r)} (${nameOf(r)}): ` + g.map(m => m.title + (m.year ? ` (${m.year})` : '')).join('; '));
   }
-  const plain = d => d.replace(/\.\s*$/, '').replace(/\.\s+/g, ', ').toLowerCase();
-  const scale = SCALE.slice(1).map((s, i) => `${i + 1} ${s[0]} (${plain(s[1])})`).reverse().join('; ');
+  const plain = d => d.replace(/\.\s*$/, '').replace(/;\s+/g, ', ').toLowerCase();
+  const scale = LEVELS.map(l => `${l.chip} ${plain(l.desc)}`).reverse().join('; ');
   return [
     `Recommend 5 to 10 movies for this request: "${q}"`,
     '',
@@ -739,7 +757,7 @@ async function playPop(rating) {
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const kernels = Array.from({ length: 10 }, (_, i) => `<i class="k" style="--a:${i * 36 + 12}deg"></i>`).join('');
   el.className = `r${rating}`;
-  el.innerHTML = `<div class="c">${kernels}<div class="disc">${rating}</div><div class="word">${esc(SCALE[rating][0])}</div></div>`;
+  el.innerHTML = `<div class="c">${kernels}<div class="disc${chipOf(rating).length > 2 ? ' wide' : ''}">${chipOf(rating)}</div><div class="word">${esc(nameOf(rating))}</div></div>`;
   void el.offsetWidth;
   el.classList.add('on');
   await wait(still ? 900 : 820);
@@ -877,20 +895,20 @@ const VIEWS = {
           <h1>${esc(m.title)}</h1>
           ${m.year ? `<p class="y">${esc(m.year)}</p>` : ''}
           <p class="g" id="gline" hidden></p>
-          ${saved ? `<p class="was">You rated it ${saved.rating}${saved.at ? ' on ' + esc(niceDay(saved.at)) : ''}</p>` : listed ? `<p class="was">On your watchlist${listed.added ? ' since ' + esc(niceDay(listed.added)) : ''}</p>` : ''}
+          ${saved ? `<p class="was">You rated it ${chipOf(saved.rating)}, ${esc(nameOf(saved.rating))}${saved.at ? ', on ' + esc(niceDay(saved.at)) : ''}</p>` : listed ? `<p class="was">On your watchlist${listed.added ? ' since ' + esc(niceDay(listed.added)) : ''}</p>` : ''}
         </div>
       </div>
       <div class="gist"><p class="syn" id="syn" hidden></p></div>
       <ol class="scale" id="scale">
-        ${SCALE.slice(1).map((s, i) => `<li><button type="button" data-v="${i + 1}"><span class="n">${i + 1}</span><span class="tx"><span class="nm">${esc(s[0])}</span><span class="d">${esc(s[1])}</span></span></button></li>`).join('')}
+        ${LEVELS.map(l => `<li><button type="button" data-v="${l.v}"><span class="n${l.chip.length > 2 ? ' wide' : ''}">${l.chip}</span><span class="tx"><span class="nm">${esc(l.name)}</span><span class="d">${esc(l.desc)}</span></span></button></li>`).join('')}
       </ol>
       <div class="dock">
         <div class="readout idle" id="readout" aria-live="polite"><p class="word">Slide to rate</p><p class="desc"></p></div>
         <div class="slider" id="slider">
           <div class="track"><div class="fill"></div></div>
-          <div class="ticks">${'<i></i>'.repeat(MAX)}</div>
+          <div class="ticks">${'<i></i>'.repeat(LEVELS.length)}</div>
           <div class="thumb" id="thumb"></div>
-          <input type="range" min="1" max="${MAX}" step="1" value="${value ?? 3}" aria-label="Rating from 1 to ${MAX}">
+          <input type="range" min="${MIN}" max="${MAX}" step="1" value="${value ?? 7}" aria-label="Rating, from 1–5 up to 10">
         </div>
         <button type="button" class="primary" id="finish" disabled>Finish</button>
       </div>
@@ -911,19 +929,19 @@ const VIEWS = {
     page.details.then(() => { if (top() === page) paintAbout(); });
     $('#syn').addEventListener('click', () => $('#syn').classList.toggle('open'));
     const set = v => {
-      v = Math.min(MAX, Math.max(1, Math.round(v)));
+      v = Math.min(MAX, Math.max(MIN, Math.round(v)));
       const changed = v !== value || !slider.classList.contains('set');
       value = page.value = v;
       if (!changed) return;
       root.className = `rate r${v}`;
       slider.classList.add('set');
-      slider.style.setProperty('--p', String((v - 1) / (MAX - 1)));
-      $('#thumb').textContent = v;
+      slider.style.setProperty('--p', String((v - MIN) / (MAX - MIN)));
+      $('#thumb').textContent = chipOf(v); $('#thumb').classList.toggle('wide', chipOf(v).length > 2);
       input.value = v;
       const ro = $('#readout');
       ro.classList.remove('idle');
-      $('.word', ro).textContent = SCALE[v][0];
-      $('.desc', ro).textContent = SCALE[v][1];
+      $('.word', ro).textContent = nameOf(v);
+      $('.desc', ro).textContent = descOf(v);
       for (const b of $$('#scale button')) b.classList.toggle('on', +b.dataset.v === v);
       const on = $('#scale .on');
       if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
@@ -932,14 +950,14 @@ const VIEWS = {
     if (value != null) set(value);
 
     // The slider answers a tap anywhere on it as well as a drag.
-    const fromX = x => { const r = slider.getBoundingClientRect(), pad = 18; return 1 + (MAX - 1) * Math.min(1, Math.max(0, (x - r.left - pad) / (r.width - pad * 2))); };
+    const fromX = x => { const r = slider.getBoundingClientRect(), pad = 18; return MIN + (MAX - MIN) * Math.min(1, Math.max(0, (x - r.left - pad) / (r.width - pad * 2))); };
     let dragging = false;
     slider.addEventListener('pointerdown', e => { dragging = true; try { slider.setPointerCapture(e.pointerId); } catch {} set(fromX(e.clientX)); e.preventDefault(); });
     slider.addEventListener('pointermove', e => { if (dragging) set(fromX(e.clientX)); });
     const end = () => { dragging = false; };
     slider.addEventListener('pointerup', end); slider.addEventListener('pointercancel', end);
     input.addEventListener('input', () => set(+input.value));
-    input.addEventListener('keydown', e => { if (!slider.classList.contains('set') && /^Arrow/.test(e.key)) { e.preventDefault(); set(Math.ceil(MAX / 2)); } });
+    input.addEventListener('keydown', e => { if (!slider.classList.contains('set') && /^Arrow/.test(e.key)) { e.preventDefault(); set(7); } });
     $('#scale').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) set(+b.dataset.v); });
 
     $('#back').addEventListener('click', back);
@@ -985,7 +1003,7 @@ const VIEWS = {
       const dest = page.from === 'watch' ? 'watch' : page.from === 'log' && state.tab === 'log' ? 'log' : 'rate';
       homes.rate.scroll = 0;
       goHome(dest);
-      $('#said').textContent = `Logged ${rec.title} as ${rating}, ${SCALE[rating][0]}.`;
+      $('#said').textContent = `Logged ${rec.title} as ${chipOf(rating)}, ${nameOf(rating)}.`;
       await playPop(rating);
     });
   },
@@ -997,16 +1015,16 @@ const VIEWS = {
     const folded = q ? new Set() : hiddenLevels;   // a search always shows everything it finds
     let body;
     if (!ratings.length) body = '<p class="note">No ratings yet. Rate a movie and it lands here.</p>';
-    else if (!list.length) body = `<p class="note">Nothing in your log matches “${esc(q)}”. Try a title, genre, year, director, actor or a rating from 1 to ${MAX}.</p>`;
+    else if (!list.length) body = `<p class="note">Nothing in your log matches “${esc(q)}”. Try a title, genre, year, director, actor or a rating (1–5, or 6 to ${MAX}).</p>`;
     else {
       body = q ? `<p class="found">${plural(list.length, 'movie', 'movies')} for “${esc(q)}”</p>` : '';
-      for (let r = MAX; r >= 1; r--) {
+      for (let r = MAX; r >= MIN; r--) {
         const g = list.filter(x => x.rating === r);
         if (!g.length) continue;
         const off = folded.has(r);
         body += q
-          ? `<div class="sec r${r}"><span class="chip">${r}</span><span class="nm">${esc(SCALE[r][0])}</span><span class="ct">${g.length}</span></div>`
-          : `<button type="button" class="sec r${r}" data-r="${r}" aria-expanded="${!off}" aria-label="${esc(SCALE[r][0])}, ${plural(g.length, 'movie', 'movies')}, ${off ? 'hidden' : 'shown'}"><span class="chip">${r}</span><span class="nm">${esc(SCALE[r][0])}</span><span class="ct">${g.length}</span><span class="chev">${ICON.chev}</span></button>`;
+          ? `<div class="sec r${r}">${chipHTML(r)}<span class="nm">${esc(nameOf(r))}</span><span class="ct">${g.length}</span></div>`
+          : `<button type="button" class="sec r${r}" data-r="${r}" aria-expanded="${!off}" aria-label="${esc(nameOf(r))}, ${plural(g.length, 'movie', 'movies')}, ${off ? 'hidden' : 'shown'}">${chipHTML(r)}<span class="nm">${esc(nameOf(r))}</span><span class="ct">${g.length}</span><span class="chev">${ICON.chev}</span></button>`;
         body += `<ul class="list tight"${off ? ' hidden' : ''}>${g.map(m => `<li>${rowHTML({ ...m, rating: 0 }, { size: 's' })}</li>`).join('')}</ul>`;
       }
     }
@@ -1137,15 +1155,16 @@ const ALIASES = { 'sci-fi': 'science fiction', scifi: 'science fiction', 'rom-co
 function matches(r, query) {
   let q = fold(query);
   for (const [k, v] of Object.entries(ALIASES)) q = q.replace(new RegExp('(^|\\s)' + reRe(k) + '(?=\\s|$)', 'g'), '$1' + v);
-  const hay = fold([r.title, SCALE[r.rating][0], ...(r.genres || []), ...(r.directors || []), ...(r.cast || [])].join(' | '));
+  const hay = fold([r.title, nameOf(r.rating), chipOf(r.rating), ...(r.genres || []), ...(r.directors || []), ...(r.cast || [])].join(' | '));
   const title = fold(r.title);
+  const lvl = n => Math.max(MIN, +n);   // 1 to 5 all mean the "1–5" level
   return q.split(/\s+/).filter(Boolean).every(t => {
     let m;
-    if ((m = t.match(/^(\d)\+$/)) && +m[1] >= 1 && +m[1] <= MAX) return r.rating >= +m[1];
-    if ((m = t.match(/^(\d)-(\d)$/)) && +m[1] >= 1 && +m[2] <= MAX) return r.rating >= +m[1] && r.rating <= +m[2];
+    if ((m = t.match(/^(\d{1,2})\+$/)) && +m[1] >= 1 && +m[1] <= MAX) return r.rating >= lvl(m[1]);
+    if ((m = t.match(/^(\d{1,2})-(\d{1,2})$/)) && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= MAX) return r.rating >= lvl(m[1]) && r.rating <= lvl(m[2]);
     if ((m = t.match(/^(\d{4})s$/))) return r.year != null && r.year >= +m[1] && r.year <= +m[1] + 9;
     if (/^\d+$/.test(t)) {
-      if (+t >= 1 && +t <= MAX && r.rating === +t) return true;
+      if (+t >= 1 && +t <= MAX && r.rating === lvl(t)) return true;
       if (t.length === 4 && String(r.year) === t) return true;
       return new RegExp('(^|[^0-9])' + t + '([^0-9]|$)').test(title);
     }
