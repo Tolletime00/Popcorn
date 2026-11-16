@@ -153,7 +153,7 @@ select.field{font-weight:500;letter-spacing:.04em}
 /* ---------- Power Rankings */
 .stick{position:sticky;top:0;z-index:3;background:var(--bg)}
 .stick .status{padding-top:6px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 54px 24px repeat(3,44px);column-gap:3px;padding:4px 40px 6px 50px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 52px 24px repeat(3,46px);column-gap:6px;padding:4px 33px 6px 45px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
 .legend{display:inline-flex;align-items:baseline;font-size:12px;color:var(--ink-2)}
 .legend b{font-weight:500}
 .legend em{font-style:normal;font-weight:300;color:var(--ink-3);margin:0 5px}
@@ -167,21 +167,21 @@ select.field{font-weight:500;letter-spacing:.04em}
 body.dragging .tier.spare{display:block}
 .rows{min-height:6px;padding:0 0 4px}
 .rows:empty{min-height:18px}
-.row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 32px;align-items:center;column-gap:6px;padding:6px 2px 6px 16px;min-height:54px;background:var(--bg)}
+.row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 26px;align-items:center;column-gap:5px;padding:6px 2px 6px 12px;min-height:54px;background:var(--bg)}
 .row.lifting{opacity:.25}
-.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 54px 24px repeat(3,44px);column-gap:3px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
+.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 52px 24px repeat(3,46px);column-gap:6px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
 .row .tx span{overflow:hidden;white-space:nowrap}
-.row .nm{grid-row:span 2;align-self:center;display:flex;align-items:baseline;gap:6px;text-align:left}
+.row .nm{grid-row:span 2;align-self:center;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:4px;text-align:left}   /* the record wraps under the name only when the two won't fit side by side */
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
-.row .rc{font-size:13px;color:var(--ink-2)}
+.row .rc{font-size:12px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.row .tx .v{font-size:13px;font-weight:500;letter-spacing:-.01em}   /* a pair of ranks, EPA | DVOA, sized to sit three to a row */
+.row .tx .v{font-size:16px;font-weight:500;letter-spacing:-.01em}   /* a pair of ranks, EPA | DVOA, sized to sit three to a row */
 .row .tx b.v{font-weight:600;color:var(--ink)}
 .row .tx i{font-style:normal}
-.row .tx em{font-style:normal;font-weight:300;color:var(--ink-3);padding:0 2px}
-.row .tx .all{grid-row:span 2;align-self:center;text-align:center;font-size:15px;font-weight:600;color:var(--ink)}   /* the team as a whole, between the offense and defense rows */
-.row .hd{width:32px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
-@media (max-width:380px){ .row .nm{display:grid;gap:0} .row .rc{font-size:12px} }   /* a narrow phone: the record goes under the name */
+.row .tx em{font-style:normal;font-weight:300;color:var(--ink-3);padding:0 1px}
+.row .tx .all{grid-row:span 2;align-self:center;text-align:center;font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}   /* the team as a whole, between the offense and defense rows */
+.row .hd{width:26px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+@media (max-width:380px){ .row .nm{display:grid;gap:0} }   /* a narrow phone: the record goes under the name */
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
 .ghost .row{background:transparent}
