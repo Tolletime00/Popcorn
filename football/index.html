@@ -153,7 +153,10 @@ select.field{font-weight:500;letter-spacing:.04em}
 /* ---------- Power Rankings */
 .stick{position:sticky;top:0;z-index:3;background:var(--bg)}
 .stick .status{padding-top:6px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 44px 24px repeat(3,38px);column-gap:4px;padding:4px 54px 6px 56px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 54px 24px repeat(3,44px);column-gap:3px;padding:4px 40px 6px 50px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+.legend{display:inline-flex;align-items:baseline;font-size:12px;color:var(--ink-2)}
+.legend b{font-weight:500}
+.legend em{font-style:normal;font-weight:300;color:var(--ink-3);margin:0 5px}
 .cols span{overflow:hidden;white-space:nowrap}
 .cols span:first-child{text-align:left}
 .cols .ov{grid-column:span 2;text-align:left;padding-left:2px}
@@ -164,18 +167,21 @@ select.field{font-weight:500;letter-spacing:.04em}
 body.dragging .tier.spare{display:block}
 .rows{min-height:6px;padding:0 0 4px}
 .rows:empty{min-height:18px}
-.row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 40px;align-items:center;column-gap:8px;padding:6px 6px 6px 20px;min-height:54px;background:var(--bg)}
+.row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 32px;align-items:center;column-gap:6px;padding:6px 2px 6px 16px;min-height:54px;background:var(--bg)}
 .row.lifting{opacity:.25}
-.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 44px 24px repeat(3,38px);column-gap:4px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
+.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 54px 24px repeat(3,44px);column-gap:3px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
 .row .tx span{overflow:hidden;white-space:nowrap}
 .row .nm{grid-row:span 2;align-self:center;display:flex;align-items:baseline;gap:6px;text-align:left}
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .row .rc{font-size:13px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.row .tx .v{font-size:18px;font-weight:500}
-.row .tx b{font-size:20px;font-weight:600;color:var(--ink)}
-.row .tx .all{grid-row:span 2;align-self:center;padding:0 8px;font-size:17px;font-weight:600;color:var(--ink)}   /* the team as a whole, between the offense and defense rows, the size of the team's name */
-.row .hd{width:40px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+.row .tx .v{font-size:13px;font-weight:500;letter-spacing:-.01em}   /* a pair of ranks, EPA | DVOA, sized to sit three to a row */
+.row .tx b.v{font-weight:600;color:var(--ink)}
+.row .tx i{font-style:normal}
+.row .tx em{font-style:normal;font-weight:300;color:var(--ink-3);padding:0 2px}
+.row .tx .all{grid-row:span 2;align-self:center;text-align:center;font-size:15px;font-weight:600;color:var(--ink)}   /* the team as a whole, between the offense and defense rows */
+.row .hd{width:32px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+@media (max-width:380px){ .row .nm{display:grid;gap:0} .row .rc{font-size:12px} }   /* a narrow phone: the record goes under the name */
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
 .ghost .row{background:transparent}
@@ -370,15 +376,15 @@ const dvoaRank = (t, key) => { if (!data || !data.dvoa || !data.dvoa[t]) return 
 const statIs = () => meta.stat === 'dvoa' && data && data.dvoa ? 'dvoa' : 'epa';
 // The six stats as ranks of the 32, by whichever the switch shows: offense high-is-good, defense low-is-good, 1 = best.
 const STAT_KEYS = { off: ['off', 'offPass', 'offRush'], def: ['def', 'defPass', 'defRush'] };
-const statValue = (t, side, k) => { if (statIs() === 'dvoa') { const d = dvoaOf(t); return d ? d[STAT_KEYS[side][k]] : null; } const e = epaOf(t); return e && e[side] ? e[side][k] : null; };
-function rankTable() {
+const statValue = (t, side, k, stat = statIs()) => { if (stat === 'dvoa') { const d = dvoaOf(t); return d ? d[STAT_KEYS[side][k]] : null; } const e = epaOf(t); return e && e[side] ? e[side][k] : null; };
+function rankTable(stat = statIs()) {   // ranks of the 32 by one stat: the switch's unless one is named
   const L = {};
-  for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) L[side + k] = ABBRS.map(t => statValue(t, side, k)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);
+  for (const side of ['off', 'def']) for (let k = 0; k < 3; k++) L[side + k] = ABBRS.map(t => statValue(t, side, k, stat)).filter(v => v != null).sort((a, b) => side === 'off' ? b - a : a - b);
   // the team as a whole: the average of its offense and defense, the defense turned round so that lower (better) counts for it
-  const net = t => { const o = statValue(t, 'off', 0), d = statValue(t, 'def', 0); return o == null || d == null ? null : (o - d) / 2; };
+  const net = t => { const o = statValue(t, 'off', 0, stat), d = statValue(t, 'def', 0, stat); return o == null || d == null ? null : (o - d) / 2; };
   L.all = ABBRS.map(net).filter(v => v != null).sort((a, b) => b - a);
   const n = Math.max(2, ...Object.values(L).map(x => x.length));
-  const rankOf = (t, side, k) => { const v = statValue(t, side, k); return v == null ? null : L[side + k].indexOf(v) + 1; };
+  const rankOf = (t, side, k) => { const v = statValue(t, side, k, stat); return v == null ? null : L[side + k].indexOf(v) + 1; };
   const rankAll = t => { const v = net(t); return v == null ? null : L.all.indexOf(v) + 1; };
   // green for the best, red for the worst, the plain text colour in the middle
   const style = r => { if (r == null) return ''; const pos = (r - 1) / (n - 1), p = Math.round(Math.abs(pos - .5) * 200); return ` style="color:color-mix(in srgb, var(--${pos < .5 ? 'win' : 'loss'}) ${p}%, var(--ink-2))"`; };
@@ -711,9 +717,11 @@ const VIEWS = {
     const hi = Math.max(...used), lo = Math.min(...used);
     const tiers = [];
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
-    const dv = statIs() === 'dvoa', R = rankTable();
-    const cell = (t, side, k, bold) => { const r = R.rankOf(t, side, k); return `<${bold ? 'b' : 'span class="v"'}${R.style(r)}>${r == null ? '–' : r}</${bold ? 'b' : 'span'}>`; };
-    const all = t => { const r = R.rankAll(t); return `<b class="all"${R.style(r)} aria-label="Overall rank ${r == null ? 'unknown' : r} of 32">${r == null ? '–' : r}</b>`; };
+    const E = rankTable('epa'), D = data && data.dvoa ? rankTable('dvoa') : null;
+    // every number is a pair: the rank by EPA per play on the left of the bar, by the DVOA-style rating on the right, each coloured by its own rank
+    const pair = (a, b) => `<i${E.style(a)}>${a ?? '–'}</i><em>|</em><i${D ? D.style(b) : ''}>${b ?? '–'}</i>`;
+    const cell = (t, side, k, bold) => `<${bold ? 'b' : 'span'} class="v">${pair(E.rankOf(t, side, k), D ? D.rankOf(t, side, k) : null)}</${bold ? 'b' : 'span'}>`;
+    const all = t => { const a = E.rankAll(t), b = D ? D.rankAll(t) : null; return `<b class="all" aria-label="Overall rank of 32: ${a ?? 'unknown'} by EPA, ${b ?? 'unknown'} by DVOA-style">${pair(a, b)}</b>`; };
     const rowHTML = t => `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
       <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span>${all(t)}<span class="lab">Off</span>${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
@@ -724,16 +732,15 @@ const VIEWS = {
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
       <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span></div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      <p class="fine">Where each team ranks of the 32 by ${dv ? 'the DVOA-style rating' : 'EPA per play'}: the big number is the team as a whole (its offense and defense averaged, the defense counted the right way round), then offense and defense, overall and by pass and rush. 1 is best (green), 32 is worst (red).${dv ? ' ' + DVOA_NOTE : ''}</p>
-      <div class="stick"><div class="status"><span>Ranks of 32 by</span>${statSeg()}</div>
-      <div class="cols num"><span>Team</span><span class="ov">Overall</span><span>${dv ? 'DVOA' : 'EPA'}</span><span>Pass</span><span>Rush</span></div></div>
+      <p class="fine">Where each team ranks of the 32, by EPA per play on the left of each bar and by the DVOA-style rating on the right: the big pair is the team as a whole (its offense and defense averaged, the defense counted the right way round), then offense and defense, in total and by pass and rush. 1 is best (green), 32 is worst (red). ${DVOA_NOTE}</p>
+      <div class="stick"><div class="status"><span>Ranks of 32 by</span><span class="legend"><b>EPA</b><em>|</em><b>DVOA-style</b></span></div>
+      <div class="cols num"><span>Team</span><span class="ov">Overall</span><span>Total</span><span>Pass</span><span>Rush</span></div></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
       </section>`).join('')}
     </section>`;
     const body = $('.rk');
-    wireStatSeg(body);
     $('#more').addEventListener('click', moreSheet);
     $('#refresh').addEventListener('click', () => refreshData(true));
     body.addEventListener('click', e => { const row = e.target.closest('.row'); if (row && !e.target.closest('.hd')) go({ name: 'team', team: row.dataset.id }); });
