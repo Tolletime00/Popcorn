@@ -137,6 +137,7 @@ body[data-view=book] #tabs,body[data-view=install] #tabs{display:none}
 .nudge b{font-weight:500;color:var(--ink)}
 
 .list{list-style:none;padding:2px 0 24px}
+.list.after{margin-top:6px;border-top:1px solid var(--line)}
 .list .mrow{padding:12px 20px}
 .list .mrow:active{background:var(--fill)}
 .more-btn{display:block;margin:0 auto 28px}
@@ -1012,7 +1013,7 @@ function shelf(page, kind) {
       b.star = !b.star; persist(1);
       paintList();
       if (b.star) { const el = $(`.star[data-star="${b.id}"]`, $('#shelf')); if (el) el.classList.add('pop'); }
-      toast(b.star ? `Moved ${b.title} up to Starred.` : `Moved ${b.title} back to ${b.year == null ? 'Year unknown' : yearText(b.year)}.`);
+      toast(b.star ? `Moved ${b.title} up to Starred.` : `Moved ${b.title} back into the list.`);
       return;
     }
     const el = e.target.closest('.mrow');
@@ -1032,20 +1033,12 @@ function groups(items, kind = 'done') {
     return gs.map(g => `<div class="sec"><span class="nm">${esc(g.month)}</span><span class="ct">${g.items.length}</span></div>
     <ul class="list">${g.items.map(b => `<li>${rowHTML(b)}</li>`).join('')}</ul>`).join('');
   }
-  const sorted = shelfSorted(items), gs = [];
-  const starred = kind === 'list' ? sorted.filter(b => b.star) : [];
-  if (starred.length) gs.push({ star: true, items: starred });   // the starred books sit above every year
-  for (const b of sorted) {
-    if (b.star && kind === 'list') continue;
-    const year = b.year ?? null;
-    const g = gs[gs.length - 1];
-    if (g && !g.star && g.year === year) g.items.push(b); else gs.push({ year, items: [b] });
-  }
-  const row = b => kind === 'list'
-    ? `<li class="wrow">${rowHTML(b)}<button type="button" class="star${b.star ? ' on' : ''}" data-star="${esc(b.id)}" aria-pressed="${!!b.star}" aria-label="${b.star ? 'Unstar' : 'Star'} ${esc(b.title)}">${ICON.star}</button></li>`
-    : `<li>${rowHTML(b)}</li>`;
-  return gs.map(g => `<div class="sec${g.star ? ' starred' : ''}">${g.star ? `<span class="si">${ICON.star}</span><span class="nm">Starred</span>` : `<span class="nm">${g.year == null ? 'Year unknown' : yearText(g.year)}</span>`}<span class="ct">${g.items.length}</span></div>
-    <ul class="list">${g.items.map(row).join('')}</ul>`).join('');
+  // Reading list: the starred books under a Starred heading, then everything else as one list, newest addition first
+  const sorted = recentFirst(items);
+  const starred = sorted.filter(b => b.star), rest = sorted.filter(b => !b.star);
+  const row = b => `<li class="wrow">${rowHTML(b)}<button type="button" class="star${b.star ? ' on' : ''}" data-star="${esc(b.id)}" aria-pressed="${!!b.star}" aria-label="${b.star ? 'Unstar' : 'Star'} ${esc(b.title)}">${ICON.star}</button></li>`;
+  return (starred.length ? `<div class="sec starred"><span class="si">${ICON.star}</span><span class="nm">Starred</span><span class="ct">${starred.length}</span></div>
+    <ul class="list">${starred.map(row).join('')}</ul>` : '') + (rest.length ? `<ul class="list${starred.length ? ' after' : ''}">${rest.map(row).join('')}</ul>` : '');
 }
 
 /* ---------------- the three dots */
