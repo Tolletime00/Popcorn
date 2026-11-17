@@ -87,6 +87,16 @@ body[data-view=book] #tabs,body[data-view=install] #tabs{display:none}
 .mrow .ck svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .mrow .ck.on{color:var(--ink)}
 .mrow .ck.on svg rect{fill:var(--acc);stroke:var(--acc)}
+.wrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.list .wrow .mrow{padding-right:6px}
+.wrow .star{width:48px;height:48px;margin-right:6px;display:grid;place-items:center;border-radius:24px;color:var(--ink-3);-webkit-tap-highlight-color:transparent}
+.wrow .star svg,.sec .si svg{display:block;width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.wrow .star:active{background:var(--fill)}
+.wrow .star.on{color:var(--acc)}
+.wrow .star.on svg{fill:var(--acc);stroke:var(--acc)}
+.wrow .star.pop svg{animation:bump .45s cubic-bezier(.3,1.6,.5,1)}
+.sec .si{display:grid;color:var(--acc);margin-right:-2px}
+.sec .si svg{width:22px;height:22px;fill:var(--acc);stroke:var(--acc)}
 .mrow .ck.on svg path{stroke:#000}
 
 .field{position:relative}
@@ -253,6 +263,7 @@ const ICON = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.4l2.8 2.8 5.4-6"/></svg>',
   tick: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  star: '<svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 3.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L13 18.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/></svg>',
 };
 
 /* ================================================================== storage
@@ -602,9 +613,9 @@ function csvOf(header, rows) {
   const cell = v => { const s = String(v ?? ''); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
-const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID'], [
-  ...shelfSorted(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '']),
-  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '']),
+const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID', 'Starred'], [
+  ...shelfSorted(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', '']),
+  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', b.star ? 'yes' : '']),
 ]);
 
 async function backup() {
@@ -645,10 +656,10 @@ function readBackup(text) {
   const head = rows[0].map(h => fold(h).replace(/[^a-z0-9]/g, ''));
   const col = names => head.findIndex(h => names.includes(h));
   let iT = col(['title', 'book', 'name']), iA = col(['author', 'authors', 'by']), iY = col(['year', 'published', 'firstpublished']), iS = col(['status', 'list', 'shelf']);
-  let iD = col(['date', 'datefinished', 'dateadded', 'finished', 'added']), iI = col(['openlibraryid', 'olid', 'id', 'key']);
+  let iD = col(['date', 'datefinished', 'dateadded', 'finished', 'added']), iI = col(['openlibraryid', 'olid', 'id', 'key']), iX = col(['starred', 'star', 'favorite', 'favourite']);
   const headed = iT >= 0;
   let body = rows.slice(1);
-  if (!headed) { iT = 1; iA = 2; iY = 3; iS = 0; iD = 5; iI = 6; body = rows; }   // no header row: assume our own columns
+  if (!headed) { iT = 1; iA = 2; iY = 3; iS = 0; iD = 5; iI = 6; iX = 7; body = rows; }   // no header row: assume our own columns
   const out = [];
   for (const r of body) {
     const title = String(r[iT] ?? '').trim();
@@ -658,7 +669,8 @@ function readBackup(text) {
     const when = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(day + 'T12:00:00') : new Date(day);
     const status = iS >= 0 ? fold(r[iS]) : '';
     out.push({ id: /^OL\d+W$/i.test(id) ? id.toUpperCase() : null, title, author: iA >= 0 ? String(r[iA] ?? '').trim() : '', year: iY >= 0 ? yearOf(r[iY]) : null,
-      kind: /read|want|list|next|queue/.test(status) && !/finished|done|^read$/.test(status) ? 'list' : 'done', at: isNaN(when) ? null : when.toISOString() });
+      kind: /read|want|list|next|queue/.test(status) && !/finished|done|^read$/.test(status) ? 'list' : 'done', at: isNaN(when) ? null : when.toISOString(),
+      star: iX >= 0 ? /^(yes|y|true|1|x|★|starred)$/i.test(String(r[iX] ?? '').trim()) : null });   // null: the file doesn't say
   }
   return out;
 }
@@ -676,7 +688,8 @@ async function restore(fileList) {
     if (!isOL(id)) unknown++;
     const rec = { id, title: row.title, author: row.author || (old && old.author) || '', year: row.year ?? (old && old.year) ?? null,
       cover: (old && old.cover) || null, genres: (old && old.genres) || [], synopsis: (old && old.synopsis) || '',
-      added: row.at || (old && old.added) || new Date(stamp - (rows.length - i) * 1000).toISOString(), full: !!(old && old.full && isOL(old.id)) };
+      added: row.at || (old && old.added) || new Date(stamp - (rows.length - i) * 1000).toISOString(), full: !!(old && old.full && isOL(old.id)),
+      star: row.kind === 'list' && (row.star ?? !!(old && old.star)) };
     finished = finished.filter(b => b !== old && b.id !== id); list = list.filter(b => b !== old && b.id !== id);
     if (row.kind === 'list') { list.push(rec); addedL++; } else { finished.push(rec); addedD++; }
   });
@@ -703,7 +716,7 @@ function guideText() {
     `3. Open ${APP} from the Home Screen.`,
     `4. On the Finished tab, tap the three dots, then "Restore from a backup" and pick "${CSV_NAME}" from OneDrive.`,
     '',
-    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds both lists: status (Finished or Reading list), title, author, year, genre, date and the Open Library ID.`,
+    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds both lists: status (Finished or Reading list), title, author, year, genre, date, the Open Library ID, and which reading-list books are starred.`,
     '',
   ].join('\r\n');
 }
@@ -769,7 +782,7 @@ function addFinished(b) {
 function addToList(b) {
   if (listedById(b.id)) { toast(`${b.title} is already on your reading list.`); return; }
   if (doneById(b.id)) { toast(`You’ve finished ${b.title} already.`); return; }
-  list.push({ id: b.id, title: b.title, author: b.author || '', year: b.year ?? null, cover: b.cover || null, genres: b.genres || [], synopsis: b.synopsis || '', added: new Date().toISOString(), full: false });
+  list.push({ id: b.id, title: b.title, author: b.author || '', year: b.year ?? null, cover: b.cover || null, genres: b.genres || [], synopsis: b.synopsis || '', added: new Date().toISOString(), full: false, star: false });
   persist(1);
   homes.list.scroll = 0; homes.list.q = '';
   goHome('list');
@@ -969,7 +982,7 @@ function shelf(page, kind) {
     let body;
     if (!items.length) body = `<p class="note">${kind === 'done' ? 'No finished books yet. Enter a title above, tap the book, and it lands here.' : 'Nothing to read yet. Enter a title above and tap the book to add it here.'}</p>`;
     else if (!hits.length) body = `<p class="found">Nothing in ${kind === 'done' ? 'Finished' : 'your reading list'} matches “${esc(q)}”. <b>Tap Search to look it up and add it.</b></p>`;
-    else body = (q ? `<p class="found">${hits.length === items.length ? plural(hits.length, 'book', 'books') : `${hits.length} of ${items.length}`} match “${esc(q)}”. <b>Tap Search to look up a new book.</b></p>` : `<p class="cap">${plural(items.length, 'book', 'books')} ${kind === 'done' ? 'finished' : 'to read'}</p>`) + groups(hits);
+    else body = (q ? `<p class="found">${hits.length === items.length ? plural(hits.length, 'book', 'books') : `${hits.length} of ${items.length}`} match “${esc(q)}”. <b>Tap Search to look up a new book.</b></p>` : `<p class="cap">${plural(items.length, 'book', 'books')} ${kind === 'done' ? 'finished' : 'to read'}</p>`) + groups(hits, kind);
     $('#shelf').innerHTML = body;
   };
   paintList();
@@ -987,21 +1000,37 @@ function shelf(page, kind) {
   const nudge = $('#nudge');
   if (nudge) nudge.addEventListener('click', backup);
   $('#shelf').addEventListener('click', e => {
+    const s = e.target.closest('.star');
+    if (s) {   // star or unstar: the book moves between the Starred section at the top and its year
+      const b = items.find(x => x.id === s.dataset.star);
+      if (!b) return;
+      b.star = !b.star; persist(1);
+      paintList();
+      if (b.star) { const el = $(`.star[data-star="${b.id}"]`, $('#shelf')); if (el) el.classList.add('pop'); }
+      toast(b.star ? `Moved ${b.title} up to Starred.` : `Moved ${b.title} back to ${b.year == null ? 'Year unknown' : yearText(b.year)}.`);
+      return;
+    }
     const el = e.target.closest('.mrow');
     if (!el) return;
     const b = items.find(x => x.id === el.dataset.id);
     if (b) go({ name: 'book', book: b, from: kind });
   });
 }
-function groups(items) {
-  const gs = [];
-  for (const b of shelfSorted(items)) {
+function groups(items, kind = 'done') {
+  const sorted = shelfSorted(items), gs = [];
+  const starred = kind === 'list' ? sorted.filter(b => b.star) : [];
+  if (starred.length) gs.push({ star: true, items: starred });   // the starred books sit above every year
+  for (const b of sorted) {
+    if (b.star && kind === 'list') continue;
     const year = b.year ?? null;
     const g = gs[gs.length - 1];
-    if (g && g.year === year) g.items.push(b); else gs.push({ year, items: [b] });
+    if (g && !g.star && g.year === year) g.items.push(b); else gs.push({ year, items: [b] });
   }
-  return gs.map(g => `<div class="sec"><span class="nm">${g.year == null ? 'Year unknown' : yearText(g.year)}</span><span class="ct">${g.items.length}</span></div>
-    <ul class="list">${g.items.map(b => `<li>${rowHTML(b)}</li>`).join('')}</ul>`).join('');
+  const row = b => kind === 'list'
+    ? `<li class="wrow">${rowHTML(b)}<button type="button" class="star${b.star ? ' on' : ''}" data-star="${esc(b.id)}" aria-pressed="${!!b.star}" aria-label="${b.star ? 'Unstar' : 'Star'} ${esc(b.title)}">${ICON.star}</button></li>`
+    : `<li>${rowHTML(b)}</li>`;
+  return gs.map(g => `<div class="sec${g.star ? ' starred' : ''}">${g.star ? `<span class="si">${ICON.star}</span><span class="nm">Starred</span>` : `<span class="nm">${g.year == null ? 'Year unknown' : yearText(g.year)}</span>`}<span class="ct">${g.items.length}</span></div>
+    <ul class="list">${g.items.map(row).join('')}</ul>`).join('');
 }
 
 /* ---------------- the three dots */
