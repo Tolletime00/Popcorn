@@ -286,6 +286,11 @@ const doneById = id => finished.find(b => b.id === id);
 const listedById = id => list.find(b => b.id === id);
 // Newest year first, A to Z within a year.
 const shelfSorted = items => [...items].sort((a, b) => (b.year ?? -1e9) - (a.year ?? -1e9) || collator.compare(sortKey(a.title), sortKey(b.title)));
+// Finished runs newest addition first; books added at the same moment (a restored backup stamps a whole day alike) keep the shelf order
+const when = b => { const t = Date.parse(b.added); return isNaN(t) ? -1e15 : t; };
+const recentFirst = items => [...items].sort((a, b) => when(b) - when(a) || (b.year ?? -1e9) - (a.year ?? -1e9) || collator.compare(sortKey(a.title), sortKey(b.title)));
+const monthFmt = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' });
+const monthText = iso => { const d = new Date(iso); return isNaN(d) ? 'Earlier' : monthFmt.format(d); };
 const label = b => b.title + (b.author ? ` by ${b.author}` : '') + (b.year != null ? ` (${yearText(b.year)})` : '');
 // A book typed in or restored from a plain list has no Open Library ID yet; the app finds one on its own.
 const isOL = id => /^OL\d+W$/.test(String(id || ''));
@@ -614,7 +619,7 @@ function csvOf(header, rows) {
   return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID', 'Starred'], [
-  ...shelfSorted(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', '']),
+  ...recentFirst(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', '']),
   ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', b.star ? 'yes' : '']),
 ]);
 
@@ -1017,6 +1022,16 @@ function shelf(page, kind) {
   });
 }
 function groups(items, kind = 'done') {
+  if (kind === 'done') {   // Finished: whatever was added last sits on top, under the month it was added
+    const gs = [];
+    for (const b of recentFirst(items)) {
+      const m = monthText(b.added);
+      const g = gs[gs.length - 1];
+      if (g && g.month === m) g.items.push(b); else gs.push({ month: m, items: [b] });
+    }
+    return gs.map(g => `<div class="sec"><span class="nm">${esc(g.month)}</span><span class="ct">${g.items.length}</span></div>
+    <ul class="list">${g.items.map(b => `<li>${rowHTML(b)}</li>`).join('')}</ul>`).join('');
+  }
   const sorted = shelfSorted(items), gs = [];
   const starred = kind === 'list' ? sorted.filter(b => b.star) : [];
   if (starred.length) gs.push({ star: true, items: starred });   // the starred books sit above every year
