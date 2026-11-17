@@ -132,9 +132,15 @@ body[data-view=book] #tabs,body[data-view=install] #tabs{display:none}
 .cap{padding:0 20px;margin-bottom:2px;font-size:13px;color:var(--ink-2)}
 .found{padding:6px 20px 0;font-size:13px;color:var(--ink-2)}
 .found b{font-weight:500;color:var(--ink)}
-.nudge{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:calc(100% - 48px);margin:4px 24px 12px;padding:12px 0 0;border-top:1px solid var(--line);font-size:15px;color:var(--ink-2)}
-.nudge i{width:8px;height:8px;border-radius:4px;background:var(--acc)}
-.nudge b{font-weight:500;color:var(--ink)}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;background:var(--bg)}
+.list .drow .mrow{padding-right:2px}
+.drow .hd{width:44px;height:64px;margin-right:6px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
+.drow .hd svg{width:22px;height:22px}
+.drow img{pointer-events:none}   /* a long press lands on the row, not on the picture */
+.drow.lifting{opacity:.25}
+.ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:14px;background:var(--sheet);opacity:.97;transform:scale(1.02)}
+.ghost .list{padding:0;margin:0}
+.ghost .drow{background:transparent}
 
 .list{list-style:none;padding:2px 0 24px}
 .list.after{margin-top:6px;border-top:1px solid var(--line)}
@@ -195,6 +201,9 @@ body[data-view=book] #tabs,body[data-view=install] #tabs{display:none}
 #toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));z-index:40;width:max-content;max-width:calc(100% - 48px);padding:10px 18px;border-radius:21px;background:var(--ink);color:var(--bg);font-size:15px;line-height:1.3;text-align:center;opacity:0;transform:translate(-50%,-10px);transition:opacity .2s,transform .2s;pointer-events:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.act{display:flex;align-items:center;gap:12px;padding:6px 6px 6px 18px;text-align:left}
+#toast.act.on{pointer-events:auto}
+#toast button{flex:none;height:32px;padding:0 14px;border-radius:16px;background:rgba(127,127,127,.38);color:var(--bg);font-size:15px;font-weight:500}
 
 /* ---------- the one piece of show: a finished book drops onto the shelf */
 #pop{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:var(--bg);pointer-events:none;opacity:0;transition:opacity .16s,background-color .3s}
@@ -265,6 +274,7 @@ const ICON = {
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.4l2.8 2.8 5.4-6"/></svg>',
   tick: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   star: '<svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 3.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L13 18.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10M7 15h10"/></svg>',
 };
 
 /* ================================================================== storage
@@ -290,6 +300,8 @@ const shelfSorted = items => [...items].sort((a, b) => (b.year ?? -1e9) - (a.yea
 // Finished runs newest addition first; books added at the same moment (a restored backup stamps a whole day alike) keep the shelf order
 const when = b => { const t = Date.parse(b.added); return isNaN(t) ? -1e15 : t; };
 const recentFirst = items => [...items].sort((a, b) => when(b) - when(a) || (b.year ?? -1e9) - (a.year ?? -1e9) || collator.compare(sortKey(a.title), sortKey(b.title)));
+// Finished is kept in shelf order, top book first, so it can be rearranged by hand. The first time this version opens it takes the order the screen already showed.
+if (meta.order !== 1) { finished = recentFirst(finished); meta.order = 1; LS.set(K.done, finished); LS.set(K.meta, meta); }
 const label = b => b.title + (b.author ? ` by ${b.author}` : '') + (b.year != null ? ` (${yearText(b.year)})` : '');
 // A book typed in or restored from a plain list has no Open Library ID yet; the app finds one on its own.
 const isOL = id => /^OL\d+W$/.test(String(id || ''));
@@ -452,12 +464,13 @@ async function fillIn(b) {
 
 // Fill in the synopsis and genres for anything saved without them (added offline, or just restored).
 let backfilling = false;
+let lifted = false;   // a book is being dragged: the shelf is not redrawn under it
 async function backfill() {
   if (backfilling) return;
   backfilling = true;
   let filled = 0;
   const repaint = () => {   // show what has come in, unless that would interrupt typing or an open sheet
-    const busy = sheets.classList.contains('open') || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
+    const busy = lifted || sheets.classList.contains('open') || /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '');
     if (filled && !busy && ['done', 'list'].includes(document.body.dataset.view)) { top().scroll = viewEl.scrollTop; render(); }
   };
   try {
@@ -548,11 +561,19 @@ $('#tabs').addEventListener('click', e => {
 
 /* ================================================================== small UI services */
 let toastTimer;
-function toast(msg) {
+function toast(msg, act) {   // act: { label, run } adds one button, such as Undo, and keeps the message up a little longer
   const t = $('#toast');
-  t.textContent = msg; t.classList.add('on');
+  t.textContent = msg;
+  t.classList.toggle('act', !!act);
+  if (act) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = act.label;
+    b.addEventListener('click', () => { clearTimeout(toastTimer); t.classList.remove('on'); act.run(); });
+    t.append(b);
+  }
+  t.classList.add('on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('on'), 2600);
+  toastTimer = setTimeout(() => t.classList.remove('on'), act ? 5000 : 2600);
 }
 
 const sheets = $('#sheets');
@@ -617,9 +638,9 @@ function csvOf(header, rows) {
   const cell = v => { const s = String(v ?? ''); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
-const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID', 'Starred'], [
-  ...recentFirst(finished).map(b => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', '']),
-  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', b.star ? 'yes' : '']),
+const toCSV = () => csvOf(['Status', 'Title', 'Author', 'Year', 'Genre', 'Date', 'Open Library ID', 'Starred', 'Order'], [
+  ...finished.map((b, i) => ['Finished', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', '', i + 1]),   // Order: the book's place on the Finished shelf, 1 at the top
+  ...shelfSorted(list).map(b => ['Reading list', b.title, b.author || '', b.year ?? '', genreText(b), localDay(b.added), isOL(b.id) ? b.id : '', b.star ? 'yes' : '', '']),
 ]);
 
 async function backup() {
@@ -660,10 +681,10 @@ function readBackup(text) {
   const head = rows[0].map(h => fold(h).replace(/[^a-z0-9]/g, ''));
   const col = names => head.findIndex(h => names.includes(h));
   let iT = col(['title', 'book', 'name']), iA = col(['author', 'authors', 'by']), iY = col(['year', 'published', 'firstpublished']), iS = col(['status', 'list', 'shelf']);
-  let iD = col(['date', 'datefinished', 'dateadded', 'finished', 'added']), iI = col(['openlibraryid', 'olid', 'id', 'key']), iX = col(['starred', 'star', 'favorite', 'favourite']);
+  let iD = col(['date', 'datefinished', 'dateadded', 'finished', 'added']), iI = col(['openlibraryid', 'olid', 'id', 'key']), iX = col(['starred', 'star', 'favorite', 'favourite']), iO = col(['order', 'position', 'place']);
   const headed = iT >= 0;
   let body = rows.slice(1);
-  if (!headed) { iT = 1; iA = 2; iY = 3; iS = 0; iD = 5; iI = 6; iX = 7; body = rows; }   // no header row: assume our own columns
+  if (!headed) { iT = 1; iA = 2; iY = 3; iS = 0; iD = 5; iI = 6; iX = 7; iO = 8; body = rows; }   // no header row: assume our own columns
   const out = [];
   for (const r of body) {
     const title = String(r[iT] ?? '').trim();
@@ -674,7 +695,8 @@ function readBackup(text) {
     const status = iS >= 0 ? fold(r[iS]) : '';
     out.push({ id: /^OL\d+W$/i.test(id) ? id.toUpperCase() : null, title, author: iA >= 0 ? String(r[iA] ?? '').trim() : '', year: iY >= 0 ? yearOf(r[iY]) : null,
       kind: /read|want|list|next|queue/.test(status) && !/finished|done|^read$/.test(status) ? 'list' : 'done', at: isNaN(when) ? null : when.toISOString(),
-      star: iX >= 0 ? /^(yes|y|true|1|x|★|starred)$/i.test(String(r[iX] ?? '').trim()) : null });   // null: the file doesn't say
+      star: iX >= 0 ? /^(yes|y|true|1|x|★|starred)$/i.test(String(r[iX] ?? '').trim()) : null,   // null: the file doesn't say
+      ord: iO >= 0 && /^\d+$/.test(String(r[iO] ?? '').trim()) ? +String(r[iO]).trim() : null });
   }
   return out;
 }
@@ -695,8 +717,13 @@ async function restore(fileList) {
       added: row.at || (old && old.added) || new Date(stamp - (rows.length - i) * 1000).toISOString(), full: !!(old && old.full && isOL(old.id)),
       star: row.kind === 'list' && (row.star ?? !!(old && old.star)) };
     finished = finished.filter(b => b !== old && b.id !== id); list = list.filter(b => b !== old && b.id !== id);
-    if (row.kind === 'list') { list.push(rec); addedL++; } else { finished.push(rec); addedD++; }
+    if (row.kind === 'list') { list.push(rec); addedL++; } else { rec._fresh = true; rec._ord = row.ord; finished.push(rec); addedD++; }
   });
+  // Finished takes the order the file gives it: its Order column when it has one, else latest date first. Books the file doesn't have stay on top.
+  const fresh = finished.filter(b => b._fresh), kept = finished.filter(b => !b._fresh);
+  const ordered = fresh.some(b => b._ord != null) ? [...fresh].sort((a, b) => (a._ord ?? 1e9) - (b._ord ?? 1e9)) : recentFirst(fresh);
+  for (const b of ordered) { delete b._fresh; delete b._ord; }
+  finished = [...kept, ...ordered];
   persist();
   closeSheet(); render();
   const parts = [];
@@ -720,7 +747,7 @@ function guideText() {
     `3. Open ${APP} from the Home Screen.`,
     `4. On the Finished tab, tap the three dots, then "Restore from a backup" and pick "${CSV_NAME}" from OneDrive.`,
     '',
-    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds both lists: status (Finished or Reading list), title, author, year, genre, date, the Open Library ID, and which reading-list books are starred.`,
+    `The code for the app is in the GitHub repository behind that address. "${CSV_NAME}" holds both lists: status (Finished or Reading list), title, author, year, genre, date, the Open Library ID, which reading-list books are starred, and each finished book's place on the shelf.`,
     '',
   ].join('\r\n');
 }
@@ -773,7 +800,7 @@ function addFinished(b) {
   const old = listedById(b.id);
   const rec = { id: b.id, title: b.title, author: b.author || (old && old.author) || '', year: b.year ?? (old && old.year) ?? null, cover: b.cover || (old && old.cover) || null,
     genres: b.genres && b.genres.length ? b.genres : (old && old.genres) || [], synopsis: b.synopsis || (old && old.synopsis) || '', added: new Date().toISOString(), full: !!(old && old.full) };
-  finished.push(rec);
+  finished.unshift(rec);   // on top
   list = list.filter(x => x.id !== b.id);   // read: it leaves the reading list
   persist(1);
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
@@ -965,7 +992,85 @@ const VIEWS = {
   },
 };
 
-/* ---------------- the shelf: search bar on top, the books grouped by year below */
+/* ---------------- drag to rearrange: lift a row by its lines at once, or by holding it; the list scrolls near the edges */
+function enableDrag(root, onDrop, onCancel) {
+  let press = null, drag = null, raf = 0, dropped = 0;
+  const prevent = e => { if (drag) e.preventDefault(); };
+  root.addEventListener('click', e => { if (Date.now() - dropped < 500) { e.stopPropagation(); e.preventDefault(); } }, true);   // letting go is not a tap
+  // The finger is followed on the whole page, not only over the list: a book can be let go over the header or the tabs and still land.
+  const onMove = e => {
+    if (press && !drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) cancel();
+    if (drag && e.pointerId === drag.id) move(e);
+  };
+  const onUp = e => { if (drag && e.pointerId === drag.id) drop(true); cancel(); };
+  const onStop = e => { if (drag && e.pointerId === drag.id) drop(false); cancel(); };
+  const listen = on => { for (const [type, fn] of [['pointermove', onMove], ['pointerup', onUp], ['pointercancel', onStop]]) document[on ? 'addEventListener' : 'removeEventListener'](type, fn, true); };
+  root.addEventListener('pointerdown', e => {
+    const row = e.target.closest('li[data-drag]');
+    if (!row || e.button || drag || press) return;
+    press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: 0 };
+    listen(true);
+    if (e.target.closest('.hd')) { e.preventDefault(); lift(); }   // the grip: no wait
+    else press.timer = setTimeout(lift, 300);                        // anywhere else: a short hold first
+  });
+  const cancel = () => { if (press) { clearTimeout(press.timer); press = null; if (!drag) listen(false); } };
+  root.addEventListener('contextmenu', e => { if (e.target.closest('li[data-drag]')) e.preventDefault(); });
+  function lift() {
+    const row = press.row, box = row.getBoundingClientRect();
+    if (!row.isConnected) { cancel(); return; }   // the list was redrawn under the finger
+    drag = { row, id: press.id, dx: press.x - box.left, dy: press.y - box.top, x: press.x, y: press.y };
+    lifted = true;
+    viewEl.style.overflowAnchor = 'none';   // the browser must not nudge the scroll position back as rows change places
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost'; ghost.style.width = box.width + 'px';
+    ghost.innerHTML = `<ul class="list">${row.outerHTML}</ul>`;
+    document.body.append(ghost);
+    drag.ghost = ghost;
+    row.classList.add('lifting');
+    document.addEventListener('touchmove', prevent, { passive: false });
+    if (navigator.vibrate) navigator.vibrate(8);
+    press = null;
+    place(drag.x, drag.y);
+    raf = requestAnimationFrame(scrollLoop);
+  }
+  function place(x, y) { drag.ghost.style.left = (x - drag.dx) + 'px'; drag.ghost.style.top = (y - drag.dy) + 'px'; }
+  function settle(x, y) {   // the row takes the place under the finger
+    const el = document.elementFromPoint(x, y);
+    const over = el && root.contains(el) ? el.closest('li[data-drag]') : null;
+    if (over === drag.row) return;
+    if (over) {
+      const b = over.getBoundingClientRect();
+      if (y < b.top + b.height / 2) over.before(drag.row); else over.after(drag.row);
+      return;
+    }
+    const list = drag.row.parentElement, b = list.getBoundingClientRect();   // past either end of the list: the very top or the very bottom
+    if (y < b.top) { if (list.firstElementChild !== drag.row) list.prepend(drag.row); }
+    else if (y > b.bottom - 24) { if (list.lastElementChild !== drag.row) list.append(drag.row); }
+  }
+  function move(e) { drag.x = e.clientX; drag.y = e.clientY; place(e.clientX, e.clientY); settle(e.clientX, e.clientY); }
+  function scrollLoop() {   // the list scrolls while the row is held near the top or bottom edge, and the row keeps up
+    if (!drag) return;
+    const b = viewEl.getBoundingClientRect(), edge = 70, before = viewEl.scrollTop;
+    const pace = d => Math.ceil(d / 4 + d * d / 120);   // gentle at the start of the edge, quick right against it: a long shelf is crossed in seconds
+    if (drag.y < b.top + edge) viewEl.scrollTop -= pace(Math.min(edge, b.top + edge - drag.y));
+    else if (drag.y > b.bottom - edge) viewEl.scrollTop += pace(Math.min(edge, drag.y - (b.bottom - edge)));
+    if (viewEl.scrollTop !== before) settle(drag.x, drag.y);
+    raf = requestAnimationFrame(scrollLoop);
+  }
+  function drop(keep) {
+    cancelAnimationFrame(raf);
+    const row = drag.row;
+    drag.ghost.remove();
+    row.classList.remove('lifting');
+    document.removeEventListener('touchmove', prevent);
+    listen(false);
+    viewEl.style.overflowAnchor = '';
+    drag = null; lifted = false; dropped = Date.now();
+    if (keep) onDrop(row); else onCancel();
+  }
+}
+
+/* ---------------- the shelf: search bar on top, the books below */
 function shelf(page, kind) {
   const items = kind === 'done' ? finished : list;
   const q = page.q || '';
@@ -977,7 +1082,6 @@ function shelf(page, kind) {
       <label for="q">Enter Title</label>
       <div class="field">${ICON.search}<input id="q" type="text" inputmode="search" enterkeyhint="search" autocapitalize="words" autocorrect="off" spellcheck="false" value="${esc(q)}" class="${q ? 'has' : ''}" aria-label="Title or author"><button type="button" class="clear" id="clear" aria-label="Clear"${q ? '' : ' hidden'}>${ICON.close}</button></div>
     </form>
-    ${n && (finished.length || list.length) && kind === 'done' ? `<button type="button" class="nudge" id="nudge"><i></i><span>${plural(n, 'change', 'changes')} not backed up</span><b>Back up</b></button>` : ''}
     <div id="shelf"></div>
   </section>`;
   const paintList = () => {
@@ -986,7 +1090,7 @@ function shelf(page, kind) {
     let body;
     if (!items.length) body = `<p class="note">${kind === 'done' ? 'No finished books yet. Enter a title above, tap the book, and it lands here.' : 'Nothing to read yet. Enter a title above and tap the book to add it here.'}</p>`;
     else if (!hits.length) body = `<p class="found">Nothing in ${kind === 'done' ? 'Finished' : 'your reading list'} matches “${esc(q)}”. <b>Tap Search to look it up and add it.</b></p>`;
-    else body = (q ? `<p class="found">${hits.length === items.length ? plural(hits.length, 'book', 'books') : `${hits.length} of ${items.length}`} match “${esc(q)}”. <b>Tap Search to look up a new book.</b></p>` : `<p class="cap">${plural(items.length, 'book', 'books')} ${kind === 'done' ? 'finished' : 'to read'}</p>`) + groups(hits, kind);
+    else body = (q ? `<p class="found">${hits.length === items.length ? plural(hits.length, 'book', 'books') : `${hits.length} of ${items.length}`} match “${esc(q)}”. <b>Tap Search to look up a new book.</b></p>` : `<p class="cap">${plural(items.length, 'book', 'books')} ${kind === 'done' ? 'finished' + (items.length > 1 && !meta.moved ? '. Drag a book by the lines, or hold it, to move it.' : '') : 'to read'}</p>`) + groups(hits, kind, !q);
     $('#shelf').innerHTML = body;
   };
   paintList();
@@ -1001,8 +1105,29 @@ function shelf(page, kind) {
     go({ name: 'results', q, mode: kind });
   });
   $('#more').addEventListener('click', moreSheet);
-  const nudge = $('#nudge');
-  if (nudge) nudge.addEventListener('click', backup);
+  const syncDot = () => {   // the dot on the three dots: something is not backed up
+    const more = $('#more'), dot = $('.dot', more), want = !!(meta.unsaved && (finished.length || list.length));
+    if (want && !dot) more.insertAdjacentHTML('beforeend', '<i class="dot"></i>'); else if (!want && dot) dot.remove();
+  };
+  if (kind === 'done') enableDrag($('#shelf'), row => {   // dropped: the list takes the order now on screen
+    const byId = new Map(finished.map(b => [b.id, b]));
+    const next = $$('li[data-drag]', $('#shelf')).map(li => byId.get(li.dataset.id)).filter(Boolean);
+    if (next.length !== finished.length) { paintList(); return; }                 // the screen and the list disagree: redraw, change nothing
+    if (next.every((b, i) => b === finished[i])) return;                          // put back where it was
+    const before = [...finished], moved = byId.get(row.dataset.id);
+    finished.splice(0, finished.length, ...next);
+    if (!meta.moved) { meta.moved = 1; const cap = $('#shelf .cap'); if (cap) cap.textContent = `${plural(finished.length, 'book', 'books')} finished`; }   // the hint has done its job
+    persist(1);
+    syncDot();
+    const name = moved ? (moved.title.length > 42 ? moved.title.slice(0, 40).trimEnd() + '…' : moved.title) : 'the book';
+    toast(`Moved ${name}.`, { label: 'Undo', run: () => {
+      if (finished.length !== before.length || !before.every(b => finished.includes(b))) return;   // the shelf has changed since: leave it
+      finished.splice(0, finished.length, ...before);
+      meta.unsaved = Math.max(0, (meta.unsaved || 0) - 1);
+      persist(); LS.set(K.meta, meta);
+      if (document.body.dataset.view === 'done') { top().scroll = viewEl.scrollTop; render(); }   // drawn afresh: the screen may have been rebuilt since the move
+    } });
+  }, paintList);
   $('#shelf').addEventListener('click', e => {
     const s = e.target.closest('.star');
     if (s) {   // star or unstar: the book moves between the Starred section at the top and its year
@@ -1020,8 +1145,11 @@ function shelf(page, kind) {
     if (b) go({ name: 'book', book: b, from: kind });
   });
 }
-function groups(items, kind = 'done') {
-  if (kind === 'done') return `<ul class="list">${recentFirst(items).map(b => `<li>${rowHTML(b)}</li>`).join('')}</ul>`;   // Finished: one list, in order of completion, latest on top
+function groups(items, kind = 'done', movable = false) {
+  // Finished: one list in its own kept order, latest on top until books are dragged; the grips show when the whole list is on screen
+  if (kind === 'done') return `<ul class="list">${items.map(b => movable
+    ? `<li class="drow" data-drag data-id="${esc(b.id)}">${rowHTML(b)}<span class="hd" aria-hidden="true">${ICON.grip}</span></li>`
+    : `<li>${rowHTML(b)}</li>`).join('')}</ul>`;
   // Reading list: the starred books under a Starred heading, then everything else as one list, both by the year the book came out, newest first
   const sorted = shelfSorted(items);
   const starred = sorted.filter(b => b.star), rest = sorted.filter(b => !b.star);
