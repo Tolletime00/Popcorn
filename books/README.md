@@ -1,6 +1,6 @@
 # Books
 
-The books you have finished, the ones you want to read, and recommendations, on an iPhone. Enter a title on the Finished tab or the Reading list tab, tap the book, and it lands on that shelf with the author, year and genre: both shelves run newest addition first, Finished grouped by the month you added the book, the Reading list as one list. Tap a book for its synopsis. On the Reading list, tap the star beside a book to pin it in a Starred section above the rest. The Recommend tab hands your request and both lists to Claude.
+The books you have finished, the ones you want to read, and recommendations, on an iPhone. Enter a title on the Finished tab or the Reading list tab, tap the book, and it lands on that shelf with the author, year and genre: Finished is one list in order of completion, latest on top; the Reading list is one list by the year the book came out, newest first. Tap a book for its synopsis. On the Reading list, tap the star beside a book to pin it in a Starred section above the rest. The Recommend tab hands your request and both lists to Claude.
 
 It is a web app that lives on the Home Screen: no App Store, no Mac, nothing to pay for.
 
