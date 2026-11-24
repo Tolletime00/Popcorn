@@ -153,13 +153,10 @@ select.field{font-weight:500;letter-spacing:.04em}
 /* ---------- Power Rankings */
 .stick{position:sticky;top:0;z-index:3;background:var(--bg)}
 .stick .status{padding-top:6px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) 52px 24px repeat(3,46px);column-gap:6px;padding:4px 33px 6px 45px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
-.legend{display:inline-flex;align-items:baseline;font-size:12px;color:var(--ink-2)}
-.legend b{font-weight:500}
-.legend em{font-style:normal;font-weight:300;color:var(--ink-3);margin:0 5px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 24px repeat(3,44px);column-gap:6px;padding:4px 33px 6px 45px;background:var(--bg);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:right}
 .cols span{overflow:hidden;white-space:nowrap}
 .cols span:first-child{text-align:left}
-.cols .ov{grid-column:span 2;text-align:left;padding-left:2px}
+.cols .lb{grid-column:span 2}
 .tier .sec{padding-top:14px}
 .tier .sec .nm{font-size:16px;font-weight:500;padding:1px 10px;border-radius:12px;background:var(--fill)}
 .tier .sec .nm.up{background:var(--g1)}.tier .sec .nm.dn{background:var(--r1)}
@@ -169,26 +166,20 @@ body.dragging .tier.spare{display:block}
 .rows:empty{min-height:18px}
 .row{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 26px;align-items:center;column-gap:5px;padding:6px 2px 6px 12px;min-height:54px;background:var(--bg)}
 .row.lifting{opacity:.25}
-.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 52px 24px repeat(3,46px);column-gap:6px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
+.row .tx{display:grid;grid-template-columns:minmax(0,1fr) 24px repeat(3,44px);column-gap:6px;row-gap:2px;align-items:baseline;min-width:0;text-align:right;font-size:13px;color:var(--ink-2)}
 .row .tx span{overflow:hidden;white-space:nowrap}
 .row .nm{grid-row:span 2;align-self:center;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:4px;text-align:left}   /* the record wraps under the name only when the two won't fit side by side */
 .row .ab{font-size:17px;font-weight:500;letter-spacing:.04em;color:var(--ink)}
 .row .rc{font-size:12px;color:var(--ink-2)}
 .row .lab{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
-.row .tx .v{font-size:16px;font-weight:500;letter-spacing:-.01em}   /* a pair of ranks, EPA | DVOA, sized to sit three to a row */
-.row .tx b.v{font-weight:600;color:var(--ink)}
-.row .tx i{font-style:normal}
-.row .tx em{font-style:normal;font-weight:300;color:var(--ink-3);padding:0 1px}
-.row .tx .all{grid-row:span 2;align-self:center;text-align:center;font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}   /* the team as a whole, between the offense and defense rows */
+.row .tx .v{font-size:18px;font-weight:500}   /* the team's rank of the 32 by EPA per play */
+.row .tx b.v{font-size:20px;font-weight:600;color:var(--ink)}
 .row .hd{width:26px;height:44px;display:grid;place-items:center;color:var(--ink-3);touch-action:none;cursor:grab}
 @media (max-width:380px){ .row .nm{display:grid;gap:0} }   /* a narrow phone: the record goes under the name */
 .row .hd svg{width:20px;height:20px}
 .ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:12px;background:var(--sheet);opacity:.96}
 .ghost .row{background:transparent}
 .rk .hint{padding:2px 20px 0;font-size:13px;color:var(--ink-3)}
-.statseg{display:inline-flex;gap:4px;flex:none}
-.statseg button{height:26px;padding:0 10px;border-radius:13px;background:var(--fill);font-size:12px;color:var(--ink-2);white-space:nowrap}
-.statseg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:500}
 .fine{padding:2px 20px 6px;font-size:12px;line-height:1.35;color:var(--ink-3)}
 .team .epa.dv b small,.team .epa.dv span small{display:block;font-size:10px;font-weight:400;color:var(--ink-3);letter-spacing:.02em}
 .team .epa .h.wide{grid-column:2 / 5;text-align:left;font-size:11px;letter-spacing:.04em;color:var(--ink-2);padding-top:6px}
@@ -373,7 +364,7 @@ const epaOf = t => (data && data.epa && data.epa[t]) || null;
 const dvoaOf = t => (data && data.dvoa && data.dvoa[t]) || null;
 // where a team's DVOA-style number sits among the 32: offense and total high is good, defense low is good
 const dvoaRank = (t, key) => { if (!data || !data.dvoa || !data.dvoa[t]) return null; const low = key.startsWith('def'); const vals = Object.values(data.dvoa).map(d => d[key]).filter(v => v != null).sort((a, b) => low ? a - b : b - a); return vals.indexOf(data.dvoa[t][key]) + 1; };
-const statIs = () => meta.stat === 'dvoa' && data && data.dvoa ? 'dvoa' : 'epa';
+const statIs = () => 'epa';   // the rankings and matchups show EPA per play only
 // The six stats as ranks of the 32, by whichever the switch shows: offense high-is-good, defense low-is-good, 1 = best.
 const STAT_KEYS = { off: ['off', 'offPass', 'offRush'], def: ['def', 'defPass', 'defRush'] };
 const statValue = (t, side, k, stat = statIs()) => { if (stat === 'dvoa') { const d = dvoaOf(t); return d ? d[STAT_KEYS[side][k]] : null; } const e = epaOf(t); return e && e[side] ? e[side][k] : null; };
@@ -412,8 +403,6 @@ function restNote(g) {
   const adv = a.rest > h.rest ? a : h, oth = adv === a ? h : a;
   return `<b>Rest edge ${adv.t}</b> · ${days(adv)}${adv.why ? ` (${adv.why})` : ''} vs ${oth.t} ${days(oth)}${oth.why ? ` (${oth.why})` : ''}`;
 }
-const statSeg = () => `<span class="statseg" role="group" aria-label="Which numbers to show"><button type="button" data-stat="epa" aria-pressed="${statIs() === 'epa'}">EPA</button><button type="button" data-stat="dvoa" aria-pressed="${statIs() === 'dvoa'}"${data && data.dvoa ? '' : ' disabled'}>DVOA-style</button></span>`;
-const wireStatSeg = root => { for (const b of $$('.statseg button', root)) b.addEventListener('click', () => { if (meta.stat === b.dataset.stat) return; meta.stat = b.dataset.stat; LS.set(K.meta, meta); render(true); }); };
 
 /* ================================================================== the season */
 // Records from the finals, team by team.
@@ -717,14 +706,12 @@ const VIEWS = {
     const hi = Math.max(...used), lo = Math.min(...used);
     const tiers = [];
     for (let v = RATING_MAX; v >= RATING_MIN; v--) tiers.push({ v, spare: v > hi || v < lo, teams: ranks.filter(r => r.rating === v).map(r => r.team) });
-    const E = rankTable('epa'), D = data && data.dvoa ? rankTable('dvoa') : null;
-    // every number is a pair: the rank by EPA per play on the left of the bar, by the DVOA-style rating on the right, each coloured by its own rank
-    const pair = (a, b) => `<i${E.style(a)}>${a ?? '–'}</i><em>|</em><i${D ? D.style(b) : ''}>${b ?? '–'}</i>`;
-    const cell = (t, side, k, bold) => `<${bold ? 'b' : 'span'} class="v">${pair(E.rankOf(t, side, k), D ? D.rankOf(t, side, k) : null)}</${bold ? 'b' : 'span'}>`;
-    const all = t => { const a = E.rankAll(t), b = D ? D.rankAll(t) : null; return `<b class="all" aria-label="Overall rank of 32: ${a ?? 'unknown'} by EPA, ${b ?? 'unknown'} by DVOA-style">${pair(a, b)}</b>`; };
+    const E = rankTable('epa');
+    // each number: the team's rank of the 32 by EPA per play, coloured by that rank
+    const cell = (t, side, k, bold) => { const r = E.rankOf(t, side, k); return `<${bold ? 'b' : 'span'} class="v"${E.style(r)}>${r ?? '–'}</${bold ? 'b' : 'span'}>`; };
     const rowHTML = t => `<li class="row" data-id="${t}" data-drag>
       ${logo(t)}
-      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span>${all(t)}<span class="lab">Off</span>${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
+      <span class="tx num"><span class="nm"><span class="ab">${t}</span><span class="rc">${record(t).text}</span></span><span class="lab">Off</span>${cell(t, 'off', 0, true)}${cell(t, 'off', 1)}${cell(t, 'off', 2)}
         <span class="lab">Def</span>${cell(t, 'def', 0, true)}${cell(t, 'def', 1)}${cell(t, 'def', 2)}</span>
       <span class="hd" aria-hidden="true">${ICON.grip}</span>
     </li>`;
@@ -732,9 +719,9 @@ const VIEWS = {
       <header class="bar"><button type="button" class="icon-btn" id="more" aria-label="Backup and settings">${ICON.more}</button><h2>Power Rankings</h2><button type="button" class="icon-btn" id="refresh" aria-label="Refresh">${ICON.refresh}</button></header>
       <div class="status"><span>${esc(stamp())}${data && data.throughWeek ? ` · wk ${data.throughWeek}` : ''}</span></div>
       <p class="hint">Points better or worse than an average team. Drag a team by the lines, or hold it.</p>
-      <p class="fine">Where each team ranks of the 32, by EPA per play on the left of each bar and by the DVOA-style rating on the right: the big pair is the team as a whole (its offense and defense averaged, the defense counted the right way round), then offense and defense, in total and by pass and rush. 1 is best (green), 32 is worst (red). ${DVOA_NOTE}</p>
-      <div class="stick"><div class="status"><span>Ranks of 32 by</span><span class="legend"><b>EPA</b><em>|</em><b>DVOA-style</b></span></div>
-      <div class="cols num"><span>Team</span><span class="ov">Overall</span><span>Total</span><span>Pass</span><span>Rush</span></div></div>
+      <p class="fine">Where each team ranks of the 32 by EPA per play: offense and defense, in total and by pass and rush. 1 is best (green), 32 is worst (red).</p>
+      <div class="stick"><div class="status"><span>Ranks of 32 by EPA per play</span></div>
+      <div class="cols num"><span class="lb">Team</span><span>Total</span><span>Pass</span><span>Rush</span></div></div>
       ${tiers.map(t => `<section class="tier${t.spare ? ' spare' : ''}" data-list="${t.v}">
         <div class="sec"><span class="nm num ${t.v > 0 ? 'up' : t.v < 0 ? 'dn' : ''}">${sign(t.v, 0)}</span>${t.teams.length ? `<span class="ct">${t.teams.length}</span>` : ''}</div>
         <ul class="rows">${t.teams.map(rowHTML).join('')}</ul>
@@ -789,7 +776,7 @@ const VIEWS = {
   mu(page) {
     const week = page.week || upcomingWeek();
     const list = games().filter(g => g.week === week).sort((a, b) => a.kickoff.localeCompare(b.kickoff) || a.away.localeCompare(b.away));
-    const dv = statIs() === 'dvoa', R = rankTable();
+    const R = rankTable('epa');
     // each chip: the offense's rank of the 32 against the rank of the defense it faces; the tint is the gap between them
     // green when the offense outranks the defense it faces, red when the defense outranks it, plain ink for an even match (16 v 16), stronger toward the extremes
     const edgeStyle = e => e ? ` style="background:color-mix(in srgb, var(--${e > 0 ? 'edge-g' : 'edge-r'}) ${Math.min(100, Math.round(100 * Math.sqrt(Math.abs(e) / 31)))}%, transparent)"` : '';   // a tinted block behind the pair; square-root ramp, so 8 apart is already half way to full colour
@@ -814,13 +801,11 @@ const VIEWS = {
     viewEl.innerHTML = `<section class="page mu">
       <div class="wkbar"><button type="button" class="icon-btn" id="prev" aria-label="Previous week" ${week <= 1 ? 'disabled' : ''}>${ICON.back}</button><h2>Week ${week}</h2><button type="button" class="icon-btn" id="next" aria-label="Next week" ${week >= 18 ? 'disabled' : ''}>${ICON.fwd}</button></div>
       <div class="status"><span>${esc(stamp())}</span><button type="button" class="refresh" aria-label="Refresh">${ICON.refresh}Refresh</button></div>
-      <div class="stick"><div class="status"><span>Ranks of 32: offense vs the defense it faces</span>${statSeg()}</div>
+      <div class="stick"><div class="status"><span>EPA ranks of 32: offense vs the defense it faces</span></div>
       <div class="mcols"><span></span><span>Team</span><span>Pwr</span><span>Spread</span><span>Yours</span><span>Offense</span><span>Pass</span><span>Rush</span></div></div>
-      ${dv ? `<p class="fine">${DVOA_NOTE}</p>` : ''}
       ${body || `<p class="note">${data ? 'No games that week.' : 'No data yet. Tap Refresh when you have a connection.'}</p>`}
       <div style="height:24px"></div>
     </section>`;
-    wireStatSeg($('.mu'));
     $('#prev').addEventListener('click', () => { page.week = week - 1; page.scroll = 0; render(); });
     $('#next').addEventListener('click', () => { page.week = week + 1; page.scroll = 0; render(); });
     $('.refresh').addEventListener('click', () => refreshData(true));
